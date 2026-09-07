@@ -77,18 +77,6 @@ pip install -r requirements.txt
    streamlit run app.py
 Open http://localhost:8501 in your web browser.
 
-# 📋 Requirements
-Create a requirements.txt file with the following dependencies:
-Plaintextstreamlit>=1.35.0
-langchain-core
-langchain-community
-langchain-google-genai
-langchain-chroma
-langgraph
-pymupdf
-docx2txt
-flashrank
-pydantic
 
   # 📖 User GuideAPI Configuration: 
   Enter your Gemini API Key in the left sidebar control panel. 
