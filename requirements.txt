@@ -1,0 +1,10 @@
+Plaintextstreamlit>=1.35.0
+langchain-core
+langchain-community
+langchain-google-genai
+langchain-chroma
+langgraph
+pymupdf
+docx2txt
+flashrank
+pydantic
