@@ -1,4 +1,4 @@
-# Multi-Format Hybrid RAG Workstation: LangGraph, Gemini & Streamlit
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/f294116a-cd1e-4076-a6df-4a5191929125" /># Multi-Format Hybrid RAG Workstation: LangGraph, Gemini & Streamlit
 
 An enterprise-grade, multi-format Retrieval-Augmented Generation (RAG) platform powered by Streamlit, LangGraph, and Google Gemini API. This application combines hybrid search (dense vector + sparse BM25), cross-encoder reranking, dynamic document chunking, automated context confidence evaluation, human-in-the-loop (HITL) supervisor overrides, and automatic LLM failover handling.  
 
@@ -40,12 +40,16 @@ An enterprise-grade, multi-format Retrieval-Augmented Generation (RAG) platform 
                                        v
                              [ Streamed Output ]
 
-                             
-# 📁 Repository StructurePlaintext.
+
+# 📁 Repository Structure Plaintext.
 ├── app.py              # Main Streamlit application UI and chat workstation
+
 ├── rag_engine.py       # Core RAG functions, document loaders, and LangGraph workflow
+
 ├── requirements.txt    # Python dependency manifest
+
 ├── Dockerfile          # Container configuration for cloud deployment
+
 └── README.md           # Project documentation
 
 
