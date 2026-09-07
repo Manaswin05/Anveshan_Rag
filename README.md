@@ -1,0 +1,2 @@
+# Enterprise-Gemini-RAG-Workstation-LangGraph-Hybrid-Search-HITL
+An enterprise multi-format RAG platform powered by Streamlit, LangGraph, and Gemini API. Integrates BM25 + Chroma hybrid search, FlashRank reranking and dynamic chunking for deep doc Q&amp;A. Includes prompt injection safeguards, automated confidence evaluation with HITL overrides, and failover LLM switching for seamless rate-limit management.
