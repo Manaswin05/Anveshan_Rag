@@ -1,5 +1,8 @@
 # Multi-Format Hybrid RAG Workstation: LangGraph, Gemini & Streamlit
 
+# Anveshan RAG (Deep Exploration & Research)
+Meaning: Anveshan means "systematic investigation" or "deep search."
+
 An enterprise-grade, multi-format Retrieval-Augmented Generation (RAG) platform powered by Streamlit, LangGraph, and Google Gemini API. This application combines hybrid search (dense vector + sparse BM25), cross-encoder reranking, dynamic document chunking, automated context confidence evaluation, human-in-the-loop (HITL) supervisor overrides, and automatic LLM failover handling.  
 
 # ⚡ Key Features
