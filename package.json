@@ -1,0 +1,24 @@
+{
+  "name": "enterprise-gemini-rag-workstation-langgraph-hybrid-search-hitl",
+  "version": "1.0.0",
+  "description": "An enterprise-grade, multi-format Retrieval-Augmented Generation (RAG) platform powered by Streamlit, LangGraph, and Google Gemini API. This application combines hybrid search (dense vector + sparse BM25), cross-encoder reranking, dynamic document chunking, automated context confidence evaluation, human-in-the-loop (HITL) supervisor overrides, and automatic LLM failover handling.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"python server.py\" \"npm run dev --prefix static\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Manaswin05/Enterprise-Gemini-RAG-Workstation-LangGraph-Hybrid-Search-HITL.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Manaswin05/Enterprise-Gemini-RAG-Workstation-LangGraph-Hybrid-Search-HITL/issues"
+  },
+  "homepage": "https://github.com/Manaswin05/Enterprise-Gemini-RAG-Workstation-LangGraph-Hybrid-Search-HITL#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

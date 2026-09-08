@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --obsidian-950: #07090b;
+    --obsidian-900: #0b0f12;
+    --obsidian-850: #0f1418;
+    --obsidian-800: #141b20;
+    --obsidian-750: #182127;
+    --obsidian-700: #202b33;
+    --obsidian-600: #2b3944;
+    --obsidian-500: #3e505e;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #090d10;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+
+  code, pre, kbd, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Tactile modern skeuomorphic bevels and high-precision borders */
+.tactile-card {
+  background: linear-gradient(180deg, rgba(24, 33, 39, 0.85) 0%, rgba(15, 20, 24, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 20px -2px rgba(0, 0, 0, 0.6),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.tactile-recessed {
+  background: #090d10;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 
+    inset 0 2px 5px rgba(0, 0, 0, 0.8),
+    inset 0 0 1px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.tactile-raised-btn {
+  background: linear-gradient(180deg, #1c262d 0%, #131a1f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  transition: all 0.12s ease-in-out;
+}
+
+.tactile-raised-btn:hover {
+  background: linear-gradient(180deg, #222e37 0%, #172026 100%);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.tactile-raised-btn:active {
+  transform: translateY(1px);
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.tactile-emerald-btn {
+  background: linear-gradient(180deg, #059669 0%, #047857 100%);
+  border: 1px solid #10b981;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 12px rgba(16, 185, 129, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+  transition: all 0.12s ease;
+}
+
+.tactile-emerald-btn:hover {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+.tactile-emerald-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Navigation tab active highlight */
+.nav-tab-active {
+  background: linear-gradient(180deg, #1e2830 0%, #141b21 100%);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 0 10px rgba(16, 185, 129, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  color: #f1f5f9;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090d10;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c262f;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #283743;
+}
+
+/* Glowing LED Keyframe Pulse */
+@keyframes emeraldPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+
+.led-pulse {
+  animation: emeraldPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+

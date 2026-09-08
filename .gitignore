@@ -1,0 +1,28 @@
+# Node & Build artifacts
+node_modules/
+dist/
+build/
+
+# Python & Virtual Environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+chroma_db/
+
+# Secrets & Environment Configurations
+.env
+.env*.local
+!.env.example
+
+# Logs & System artifacts
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

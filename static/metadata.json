@@ -1,0 +1,7 @@
+{
+  "name": "RAG Intelligence & ML Workstation",
+  "description": "Enterprise RAG Intelligence Workstation featuring hybrid retrieval, cross-encoder reranking, HITL supervision, multimodal image analysis, Gemini chatbots, and ForgeML model training configuration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
