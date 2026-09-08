@@ -1,0 +1,9 @@
+node_modules/
+__pycache__/
+.env
+.git/
+chroma_db/
+.DS_Store
+*.log
+static/dist/
+*.pyc
