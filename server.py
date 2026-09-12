@@ -339,7 +339,8 @@ def session_status():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
     print("\n  [*] Enterprise RAG Workstation -- Flask Server")
-    print("  [>] API Base:  http://localhost:5000/api")
-    print("  [>] Frontend:  http://localhost:5000/\n")
-    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+    print(f"  [>] API Base:  http://localhost:{port}/api")
+    print(f"  [>] Frontend:  http://localhost:{port}/\n")
+    app.run(host="0.0.0.0", port=port, debug=True, threaded=True)

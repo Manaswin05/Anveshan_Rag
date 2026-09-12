@@ -27,5 +27,5 @@ COPY rag_engine.py .
 COPY --from=build-stage /app/dist /app/static/dist
 
 # Render.com provides the PORT environment variable.
-# We'll use gunicorn to serve the Flask app, binding to 0.0.0.0:
-CMD gunicorn server:app --bind 0.0.0.0: --workers 2 --threads 4
+# Use sh -c so variable expansion works reliably at runtime.
+CMD ["sh", "-c", "exec gunicorn server:app --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4"]
