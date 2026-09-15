@@ -32,7 +32,7 @@ function Robot({ isThinking }: { isThinking: boolean }) {
   const group = useRef<THREE.Group>(null);
   
   // Use suspense to load the model. Replace '/robot.glb' with the actual filename.
-  const { scene, animations } = useGLTF('/robot.glb');
+  const { scene, animations } = useGLTF('/scene.gltf');
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -89,4 +89,4 @@ export const RobotModel: React.FC<RobotModelProps> = ({ isThinking }) => {
 };
 
 // Intentionally disabled preload so it doesn't throw outside the error boundary if missing
-// useGLTF.preload('/robot.glb');
+// useGLTF.preload('/scene.gltf');
