@@ -33,6 +33,17 @@ import {
   initialStages,
   initialAuditLogs
 } from "../data/mockCorpus";
+import { RobotModel } from "./RobotModel";
+
+
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface RAGWorkstationProps {
   onOpenHitl: () => void;
@@ -45,7 +56,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
   onOpenImageAnalysis,
   onOpenCommandPalette,
 }) => {
-  const [activeTab, setActiveTab] = useState<RAGTabId>("workspace");
+  const [activeTab, setActiveTab] = useState<string>("workspace");
   const [selectedModel, setSelectedModel] = useState<string>("gemini-3.5-flash");
   const [enableHighThinking, setEnableHighThinking] = useState<boolean>(false);
   const [chunks, setChunks] = useState<RetrievedChunk[]>(initialChunks);
@@ -61,7 +72,6 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Initial rich conversation stream
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "m-0",
@@ -103,9 +113,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3200);
+    setTimeout(() => setToastMessage(null), 3200);
   };
 
   const handleHighlightEvidence = (chunkId: number) => {
@@ -114,16 +122,14 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-    setTimeout(() => {
-      setHighlightedChunkId(null);
-    }, 2000);
+    setTimeout(() => setHighlightedChunkId(null), 2000);
   };
 
   const handleReindex = () => {
     setIsReindexing(true);
     setTimeout(() => {
       setIsReindexing(false);
-      showToast("Corpus re-indexed: 386 dense vectors refreshed (ADA-002 / Text-Embedding-3-Large)");
+      showToast("Corpus re-indexed: 386 dense vectors refreshed");
       setAuditLogs((prev) => [
         {
           id: `log-${Date.now()}`,
@@ -172,7 +178,6 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       
-      // Initialize empty assistant message
       setMessages((prev) => [
         ...prev,
         {
@@ -199,7 +204,6 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
             if (line.startsWith("data: ")) {
               try {
                 const data = JSON.parse(line.substring(6));
-                
                 if (data.type === "token") {
                   setMessages((prev) =>
                     prev.map((m) =>
@@ -208,7 +212,6 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
                   );
                 } else if (data.type === "escalation") {
                   showToast("Supervisor Escalation Triggered!");
-                  // Mock showing escalation
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantId ? { ...m, content: m.content + "\n\n[ERROR: Policy violation detected. Escalated to human supervisor.]" } : m
@@ -249,943 +252,507 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
     }
   };
 
+  const tabsItems = [
+    { id: "workspace", label: "WORKSPACE" },
+    { id: "documents", label: "DOCUMENTS", count: documents.length },
+    { id: "pipeline", label: "PIPELINE" },
+    { id: "retrieval", label: "RETRIEVAL" },
+    { id: "audit", label: "AUDIT" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#090d10] text-slate-300 font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
-      {/* BEGIN: TopNavigationBar (Obsidian Command) */}
-      <header className="sticky top-0 z-40 h-[72px] w-full border-b border-white/[0.07] bg-[#0b0f12]/95 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shadow-2xl">
-        {/* Left: Brand + Identity */}
-        <div className="flex items-center gap-3.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-b from-[#182127] to-[#0f1418] border border-emerald-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]">
-            <Zap className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+    <div className="min-h-screen bg-background text-foreground">
+      {/* HEADER */}
+      <header className="header-glow sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b-0 bg-background/95 backdrop-blur-sm px-4 lg:px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md border bg-surface-1">
+            <Zap className="h-5 w-5 text-accent" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-base font-bold tracking-wider text-slate-100">
-                RAG WORKSTATION
+              <span className="font-mono text-sm font-medium uppercase tracking-[0.08em] text-accent">
+                ANVESHAN RAG
               </span>
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 led-pulse"></span>
+              <span className="pip pip-online pip-pulse" />
             </div>
-            <p className="font-mono text-xs uppercase tracking-widest text-slate-400 mt-0.5">
-              Enterprise Intelligence · v2.4
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground mt-0.5">
+              Obsidian Command · v2.4
             </p>
           </div>
         </div>
 
-        {/* Center: Physical Tactile Navigation Tabs */}
-        <nav
-          aria-label="Main Navigation"
-          className="hidden md:flex items-center gap-1.5 rounded-xl bg-[#07090b]/80 p-1 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)]"
-        >
-          <button
-            onClick={() => setActiveTab("workspace")}
-            className={`${
-              activeTab === "workspace"
-                ? "nav-tab-active"
-                : "text-slate-400 hover:text-slate-200"
-            } flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-sm font-semibold tracking-wide transition-all`}
-          >
-            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
-            WORKSPACE
-          </button>
-          <button
-            onClick={() => setActiveTab("documents")}
-            className={`${
-              activeTab === "documents"
-                ? "nav-tab-active"
-                : "text-slate-400 hover:text-slate-200"
-            } flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-sm font-semibold tracking-wide transition-all`}
-          >
-            DOCUMENTS
-            <span className="rounded bg-[#182127] px-2 py-0.5 text-xs text-slate-300 border border-white/[0.06]">
-              {documents.length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveTab("pipeline")}
-            className={`${
-              activeTab === "pipeline"
-                ? "nav-tab-active"
-                : "text-slate-400 hover:text-slate-200"
-            } flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-sm font-semibold tracking-wide transition-all`}
-          >
-            PIPELINE
-            <span className="h-2 w-2 rounded-full bg-cyan-400/80"></span>
-          </button>
-          <button
-            onClick={() => setActiveTab("retrieval")}
-            className={`${
-              activeTab === "retrieval"
-                ? "nav-tab-active"
-                : "text-slate-400 hover:text-slate-200"
-            } flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-sm font-semibold tracking-wide transition-all`}
-          >
-            RETRIEVAL
-          </button>
-          <button
-            onClick={() => setActiveTab("audit")}
-            className={`${
-              activeTab === "audit"
-                ? "nav-tab-active"
-                : "text-slate-400 hover:text-slate-200"
-            } flex items-center gap-2 rounded-lg px-4 py-2 font-mono text-sm font-semibold tracking-wide transition-all`}
-          >
-            AUDIT
-          </button>
-        </nav>
+        {/* Center: Navigation Tabs (using Shadcn Tabs structure for header) */}
+        <div className="hidden md:flex h-full items-center">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+            <TabsList variant="line" className="h-full">
+              {tabsItems.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id} className="h-full text-xs font-mono uppercase tracking-wider rounded-none data-[state=active]:border-b-2 data-[state=active]:border-accent">
+                  <div className="flex items-center gap-2">
+                    {activeTab === tab.id && <span className="pip pip-online" style={{ width: 6, height: 6 }} />}
+                    {tab.label}
+                    {tab.count !== undefined && (
+                      <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px] rounded-sm">{tab.count}</Badge>
+                    )}
+                  </div>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
 
-        {/* Right: Controls, Palette, Switcher & Profile */}
-        <div className="flex items-center gap-3">
-
-          {/* Model Status Pill */}
-          <div className="hidden lg:flex items-center gap-2.5 rounded-lg bg-[#0f1418] border border-white/[0.06] px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 led-pulse"></span>
-            <span className="font-mono text-sm font-medium text-slate-200 uppercase">
-              {enableHighThinking ? "GEMINI 3.1 PRO (HIGH THINKING)" : selectedModel}
+        <div className="flex items-center gap-2.5">
+          <div className="hidden lg:flex items-center gap-2 rounded-md border bg-surface-1 px-3 py-1.5">
+            <span className="pip pip-success" />
+            <span className="font-mono text-[11px] font-medium uppercase text-foreground">
+              {enableHighThinking ? "GEMINI 3.1 PRO (HIGH)" : selectedModel.toUpperCase()}
             </span>
-            <span className="border-l border-white/10 pl-2 font-mono text-xs text-emerald-400 font-semibold">
-              14ms
-            </span>
+            <span className="ml-2 border-l pl-2 font-mono text-[11px] font-medium text-muted-foreground">14ms</span>
           </div>
 
-          {/* Quick Command Trigger (⌘K) */}
-          <button
-            onClick={onOpenCommandPalette}
-            className="tactile-raised-btn hidden sm:flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-300"
-            title="Global Command Palette (⌘K)"
-          >
-            <kbd className="font-mono text-xs bg-black/40 px-1.5 py-0.5 rounded border border-white/10 text-slate-300">
-              ⌘K
-            </kbd>
-          </button>
+          <Button variant="ghost" size="sm" onClick={onOpenCommandPalette} className="hidden sm:flex">
+            <kbd className="rounded-sm border bg-surface-0 px-1.5 py-0.5 font-mono text-[10px]">⌘K</kbd>
+          </Button>
 
-          {/* Image Analysis Trigger */}
-          <button
-            onClick={onOpenImageAnalysis}
-            className="tactile-raised-btn flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-cyan-300 border-cyan-500/30 hover:border-cyan-400"
-            title="Multimodal Image Analysis (gemini-3.1-pro-preview)"
-          >
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="hidden sm:inline font-mono font-medium">Analyze Image</span>
-          </button>
+          <Button variant="ghost" size="sm" onClick={onOpenImageAnalysis} className="gap-1.5">
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline font-mono text-[11px] font-medium">ANALYZE</span>
+          </Button>
 
-          {/* Notification Bell */}
-          <button
-            onClick={() => showToast("All 12 corpora synchronized with SHA-256 hashes")}
-            className="tactile-raised-btn relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:text-slate-200"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-amber-400"></span>
-          </button>
+          <Button variant="ghost" size="icon" onClick={() => showToast("All corpora synchronized")}>
+            <div className="relative">
+              <Bell className="h-4 w-4" />
+              <span className="pip pip-warning absolute -right-1 -top-1 h-1.5 w-1.5" />
+            </div>
+          </Button>
 
-          {/* Supervisor Profile Badge */}
-          <div className="flex items-center gap-2.5 rounded-lg bg-[#141b20] border border-white/[0.08] px-3 py-1.5">
-            <div className="h-7 w-7 rounded bg-gradient-to-tr from-emerald-600 to-teal-400 text-xs font-mono font-bold text-black flex items-center justify-center">
+          <div className="flex items-center gap-2.5 rounded-md border bg-surface-1 px-3 py-1.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent font-mono text-[11px] font-bold text-background">
               SV
             </div>
-            <div className="hidden xl:block text-left">
-              <p className="font-mono text-sm font-semibold text-slate-200 leading-tight">
-                SV-402
-              </p>
-              <p className="text-xs font-mono uppercase text-emerald-400 leading-tight">
-                Admin Tier 3
-              </p>
+            <div className="hidden xl:block">
+              <p className="font-mono text-xs font-medium text-foreground">SV-402</p>
+              <p className="font-mono text-[10px] font-medium tracking-wider text-muted-foreground">ADMIN TIER 3</p>
             </div>
           </div>
         </div>
       </header>
-      {/* END: TopNavigationBar */}
 
-      {/* BEGIN: Main Content Area */}
-      <main className="w-full min-h-[calc(100vh-72px)] max-w-[1600px] mx-auto p-4 sm:p-6 space-y-6">
-        {/* VIEW 1: WORKSPACE (Default Active Tab) */}
-        {activeTab === "workspace" && (
-          <div className="space-y-6 block">
-            {/* Subheader with Title & Live Controls */}
-            <section className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.06] pb-5">
+      <main className="mx-auto max-w-[1600px] p-6">
+        <Tabs value={activeTab} className="w-full">
+          {/* VIEW 1: WORKSPACE */}
+          <TabsContent value="workspace" className="flex flex-col gap-6 mt-0 animate-tab-content">
+            <section className="flex flex-wrap items-center justify-between gap-4 border-b pb-5 animate-fade-in-up">
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-2.5 font-sans">
-                    RAG INTELLIGENCE WORKSTATION
-                  </h1>
-                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-mono text-emerald-400 font-semibold">
-                    ● PIPELINE READY
-                  </span>
+                  <h1 className="font-sans text-2xl font-semibold text-accent">RAG Intelligence Workstation</h1>
+                  <Badge variant="outline" className="gap-1.5 border-success/30 bg-success/10 text-success">
+                    <span className="pip pip-success h-1.5 w-1.5" /> PIPELINE READY
+                  </Badge>
                 </div>
-                <p className="mt-1.5 font-mono text-sm text-slate-400">
-                  Hybrid Retrieval (BM25 + Dense Vectors) · Cross-Encoder Reranking · Human-in-the-Loop Supervision
+                <p className="font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground mt-2">
+                  Hybrid Retrieval (BM25 + Dense Vectors) · Cross-Encoder Reranking · HITL Supervision
                 </p>
               </div>
 
-              {/* Action Control Group */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={onOpenHitl}
-                  className="tactile-raised-btn flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-mono text-amber-300 border-amber-500/30 hover:border-amber-400/50"
-                >
-                  <span className="h-2 w-2 rounded-full bg-amber-400 led-pulse"></span>
-                  SIMULATE HITL ESCALATION
-                </button>
-                <button
-                  onClick={handleReindex}
-                  disabled={isReindexing}
-                  className="tactile-raised-btn flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-mono text-slate-200"
-                >
-                  <RefreshCw className={`w-4 h-4 text-emerald-400 ${isReindexing ? "animate-spin" : ""}`} />
-                  <span>{isReindexing ? "RE-INDEXING..." : "RE-INDEX"}</span>
-                </button>
+              <div className="flex items-center gap-2.5">
+                <Button variant="ghost" onClick={onOpenHitl} className="gap-2">
+                  <span className="pip pip-warning pip-pulse" /> SIMULATE HITL
+                </Button>
+                <Button variant="ghost" onClick={handleReindex} disabled={isReindexing} className="gap-2">
+                  <RefreshCw className={`h-4 w-4 ${isReindexing ? "animate-spin" : ""}`} />
+                  {isReindexing ? "RE-INDEXING..." : "RE-INDEX"}
+                </Button>
               </div>
             </section>
 
-            {/* BEGIN: TactileDocumentIntelligenceModule */}
-            <section className="tactile-card rounded-xl p-5 sm:p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/[0.06] pb-4 mb-4">
-                {/* Active File Descriptor */}
+            <Card className="bg-surface-1 p-6 animate-fade-in-up stagger-1">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-mono font-bold text-sm">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-md border bg-surface-0 font-mono text-xs font-bold text-destructive">
                     PDF
                   </div>
                   <div>
                     <div className="flex items-center gap-2.5">
-                      <span className="text-base font-semibold text-slate-100 font-mono">
-                        employee_handbook_2026.pdf
-                      </span>
-                      <span className="rounded bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-300 border border-white/[0.06]">
-                        ACTIVE INDEX
-                      </span>
+                      <span className="font-mono text-sm font-medium text-accent">employee_handbook_2026.pdf</span>
+                      <Badge variant="secondary" className="font-mono text-[10px] tracking-wider">ACTIVE INDEX</Badge>
                     </div>
-                    <p className="text-sm font-mono text-slate-400 truncate max-w-lg mt-0.5">
+                    <p className="mt-1 max-w-[500px] font-mono text-[10px] tracking-wider text-muted-foreground">
                       SHA-256: 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069
                     </p>
                   </div>
                 </div>
-
-                {/* Synchronized indicator */}
-                <div className="flex items-center gap-2 font-mono text-sm text-slate-300">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
-                  Last Embedded: Today 13:04:18 UTC (100% synchronized)
+                <div className="flex items-center gap-2">
+                  <span className="pip pip-success" />
+                  <span className="font-mono text-xs font-medium text-foreground">Last Embedded: Today 13:04:18 UTC (100%)</span>
                 </div>
               </div>
 
-              {/* 4 Tactile Metric Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="tactile-recessed rounded-lg p-4 relative overflow-hidden">
-                  <div className="text-xs font-mono text-slate-300 font-semibold uppercase tracking-wider">
-                    PAGES
-                  </div>
-                  <div className="mt-1 text-3xl font-bold font-mono text-white">42</div>
-                  <div className="text-xs font-mono text-emerald-400/90 mt-1 flex items-center gap-1 font-medium">
-                    ✓ Annotated & OCR Verified
-                  </div>
-                </div>
-
-                <div className="tactile-recessed rounded-lg p-4 relative overflow-hidden">
-                  <div className="text-xs font-mono text-slate-300 font-semibold uppercase tracking-wider">
-                    CHUNKS
-                  </div>
-                  <div className="mt-1 text-3xl font-bold font-mono text-white">386</div>
-                  <div className="text-xs font-mono text-slate-400 mt-1">
-                    1,000 token target chunk size
-                  </div>
-                </div>
-
-                <div className="tactile-recessed rounded-lg p-4 relative overflow-hidden">
-                  <div className="text-xs font-mono text-slate-300 font-semibold uppercase tracking-wider">
-                    DENSITY / SIZE
-                  </div>
-                  <div className="mt-1 text-3xl font-bold font-mono text-white">
-                    4.8 <span className="text-sm text-slate-400">MB</span>
-                  </div>
-                  <div className="text-xs font-mono text-slate-400 mt-1">
-                    Dense 1536-dim vectors (Float32)
-                  </div>
-                </div>
-
-                <div className="tactile-recessed rounded-lg p-4 relative overflow-hidden">
-                  <div className="text-xs font-mono text-slate-300 font-semibold uppercase tracking-wider">
-                    OVERLAP
-                  </div>
-                  <div className="mt-1 text-3xl font-bold font-mono text-white">
-                    100 <span className="text-sm text-slate-400">tok</span>
-                  </div>
-                  <div className="text-xs font-mono text-cyan-400/90 mt-1">
-                    10% sliding semantic window
-                  </div>
-                </div>
-              </div>
-            </section>
-            {/* END: TactileDocumentIntelligenceModule */}
-
-            {/* BEGIN: HighPrecisionPipelineStepper (9 Stages) */}
-            <section className="tactile-card rounded-xl p-5 sm:p-6 space-y-3.5">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-semibold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-emerald-400" />
-                  PIPELINE EXECUTION MONITOR · 9-STAGE HYBRID PIPELINE
-                </span>
-                <span className="font-mono text-sm text-emerald-400 font-semibold">
-                  TOTAL LATENCY: 1.28s
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5">
-                {stages.map((stg) => {
-                  const isAccent = stg.isAccent;
-                  return (
-                    <div
-                      key={stg.id}
-                      className={`tactile-recessed rounded-md p-2.5 text-center border-l-2 ${
-                        isAccent
-                          ? "border-cyan-400 ring-1 ring-cyan-500/30"
-                          : stg.name === "HITL"
-                          ? "border-amber-500"
-                          : "border-emerald-500"
-                      }`}
-                    >
-                      <div
-                        className={`text-xs font-mono font-medium ${
-                          isAccent ? "text-cyan-300 font-semibold" : stg.name === "HITL" ? "text-amber-300" : "text-slate-300"
-                        }`}
-                      >
-                        {stg.num}. {stg.name}
-                      </div>
-                      <div
-                        className={`font-mono text-sm font-bold mt-0.5 ${
-                          stg.name === "HITL" ? "text-amber-400" : "text-white"
-                        }`}
-                      >
-                        {stg.name === "HITL" ? "ONLINE" : `${stg.latencyMs}ms`}
-                      </div>
-                      <div
-                        className={`text-xs font-mono ${
-                          isAccent
-                            ? "text-cyan-400"
-                            : stg.name === "HITL"
-                            ? "text-amber-400/80"
-                            : "text-emerald-400"
-                        }`}
-                      >
-                        {stg.badge}
-                      </div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                {[
+                  { label: "PAGES", value: "42", sub: "✓ Annotated & OCR Verified", subColor: 'text-success' },
+                  { label: "CHUNKS", value: "386", sub: "1,000 token target chunk size" },
+                  { label: "DENSITY / SIZE", value: "4.8", unit: "MB", sub: "Dense 1536-dim vectors (Float32)" },
+                  { label: "OVERLAP", value: "100", unit: "tok", sub: "10% sliding semantic window", subColor: 'text-info' },
+                ].map((m) => (
+                  <div key={m.label} className="rounded-md border bg-surface-0 p-4 hover-lift">
+                    <div className="font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{m.label}</div>
+                    <div className="mt-1 font-mono text-4xl font-bold text-accent">
+                      {m.value}
+                      {m.unit && <span className="ml-1 text-sm text-muted-foreground">{m.unit}</span>}
                     </div>
-                  );
-                })}
+                    <div className={`mt-1.5 font-mono text-[10px] font-medium ${m.subColor || 'text-muted-foreground'}`}>
+                      {m.sub}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </section>
-            {/* END: HighPrecisionPipelineStepper */}
+            </Card>
 
-            {/* BEGIN: DualColumnAnalystConsole (Left Chat & Right Evidence) */}
-            <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Left Column: Primary Chat & Reasoning Console (65%) */}
-              <div className="lg:col-span-8 space-y-4">
-                <div className="tactile-card rounded-xl p-4 sm:p-6 flex flex-col h-[740px]">
-                  {/* Console Header with Model Switcher & High Thinking */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.08] pb-3 gap-2">
+            <Card className="bg-surface-1 p-6 animate-fade-in-up stagger-2">
+              <div className="mb-4 flex items-center justify-between">
+                <span className="flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <Cpu className="h-4 w-4 text-accent" /> PIPELINE EXECUTION MONITOR · 9-STAGE
+                </span>
+                <span className="font-mono text-xs font-medium text-accent">TOTAL: 1.28s</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 md:grid-cols-9">
+                {stages.map((stg) => (
+                  <div key={stg.id} className={`flex flex-col items-center justify-center rounded-md border bg-surface-0 p-2.5 text-center border-l-4 hover-lift ${stg.name === "HITL" ? 'border-l-warning' : stg.isAccent ? 'border-l-info' : 'border-l-accent'}`}>
+                    <div className={`font-mono text-[10px] font-medium tracking-wider ${stg.name === "HITL" ? 'text-warning' : stg.isAccent ? 'text-info' : 'text-foreground'}`}>
+                      {stg.num}. {stg.name}
+                    </div>
+                    <div className={`mt-0.5 font-mono text-sm font-bold ${stg.name === "HITL" ? 'text-warning' : 'text-accent'}`}>
+                      {stg.name === "HITL" ? "ONLINE" : `${stg.latencyMs}ms`}
+                    </div>
+                    <div className={`mt-0.5 font-mono text-[9px] font-medium tracking-wider ${stg.isAccent ? 'text-info' : stg.name === "HITL" ? 'text-warning' : 'text-muted-foreground'}`}>
+                      {stg.badge}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+              <div className="lg:col-span-8">
+                <Card className="flex h-[calc(100vh-240px)] min-h-[500px] flex-col bg-surface-1 p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
-                      <span className="font-mono text-sm font-bold tracking-wider text-slate-200 uppercase">
-                        DOCUMENT INTELLIGENCE CONSOLE · ACTIVE SESSION
-                      </span>
+                      <span className="pip pip-online" />
+                      <span className="font-mono text-xs font-medium uppercase tracking-wider text-foreground">DOCUMENT INTELLIGENCE CONSOLE</span>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      {/* High Thinking Toggle */}
-                      <button
-                        onClick={() => {
-                          const next = !enableHighThinking;
-                          setEnableHighThinking(next);
-                          showToast(
-                            next
-                              ? "Enabled High Thinking with gemini-3.1-pro-preview"
-                              : "Switched to standard reasoning mode"
-                          );
-                        }}
-                        className={`px-2.5 py-1 rounded text-xs font-mono flex items-center gap-1.5 transition-all ${
-                          enableHighThinking
-                            ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
-                            : "bg-[#141b20] text-slate-400 border border-white/10 hover:text-slate-200"
-                        }`}
-                        title="Enable deep thinking mode using ThinkingLevel.HIGH (gemini-3.1-pro-preview)"
+                    <div className="flex items-center gap-2.5">
+                      <Button 
+                        variant={enableHighThinking ? "secondary" : "outline"} 
+                        size="sm" 
+                        onClick={() => setEnableHighThinking(!enableHighThinking)}
+                        className={`h-7 px-2.5 font-mono text-[11px] ${enableHighThinking ? 'bg-info/10 text-info border-info/40' : ''}`}
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                        <span>High Thinking: {enableHighThinking ? "ON" : "OFF"}</span>
-                      </button>
-
-                      <span className="font-mono text-xs text-slate-400">
-                        Session: <span className="text-slate-200">#WKST-982</span>
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" /> High Thinking: {enableHighThinking ? "ON" : "OFF"}
+                      </Button>
+                      <span className="font-mono text-[10px] font-medium tracking-wider text-muted-foreground">
+                        Session: <span className="text-foreground">#WKST-982</span>
                       </span>
-
-                      <button
-                        onClick={() => {
-                          setMessages([
-                            {
-                              id: "m-reset",
-                              role: "assistant",
-                              content:
-                                "Session buffer cleared. Active index: employee_handbook_2026.pdf ready for new inquiries.",
-                              timestamp: new Date().toISOString().substring(11, 19) + " UTC",
-                            },
-                          ]);
-                          showToast("Chat context and active buffers cleared");
-                        }}
-                        className="tactile-raised-btn px-2.5 py-1 rounded text-xs font-mono text-slate-400 hover:text-slate-200"
-                        title="Clear Context"
-                      >
-                        Clear
-                      </button>
+                      <Button variant="ghost" size="sm" className="h-7 font-mono text-[11px]" onClick={() => {
+                        setMessages([{ id: "m-reset", role: "assistant", content: "Session buffer cleared. Active index: employee_handbook_2026.pdf ready for new inquiries.", timestamp: new Date().toISOString().substring(11, 19) + " UTC" }]);
+                      }}>CLEAR</Button>
                     </div>
                   </div>
 
-                  {/* Chat Stream Box */}
-                  <div
-                    ref={chatScrollRef}
-                    className="flex-1 overflow-y-auto pr-2 py-4 space-y-5"
-                    id="chat-stream-box"
-                  >
-                    {messages.map((msg) => {
-                      const isAssistant = msg.role === "assistant";
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`flex items-start gap-3.5 ${
-                            isAssistant ? "" : "justify-end"
-                          }`}
-                        >
-                          {isAssistant && (
-                            <div className="h-9 w-9 rounded-lg bg-[#182127] border border-white/10 flex items-center justify-center font-mono text-emerald-400 text-sm font-bold shrink-0">
-                              RAG
-                            </div>
-                          )}
-
-                          <div
-                            className={`space-y-2.5 ${
-                              isAssistant ? "max-w-[92%]" : "max-w-[85%]"
-                            }`}
-                          >
-                            <div
-                              className={`${
-                                isAssistant
-                                  ? "tactile-recessed p-5 rounded-xl text-sm sm:text-base text-slate-100 leading-relaxed space-y-3"
-                                  : "tactile-raised-btn bg-[#141b20] p-4 rounded-xl text-sm sm:text-base text-slate-100 border-emerald-500/20 leading-relaxed"
-                              }`}
-                            >
-                              {/* Attached image preview if present */}
-                              {msg.attachment?.url && (
-                                <div className="mb-2 p-2 rounded bg-black/50 border border-white/10 max-w-xs">
-                                  <img
-                                    src={msg.attachment.url}
-                                    alt="Attached"
-                                    className="rounded max-h-32 object-contain"
-                                  />
-                                  <span className="text-xs font-mono text-cyan-400 block mt-1">
-                                    [Analyzed via gemini-3.1-pro-preview]
-                                  </span>
+                  <div className="relative flex-1 overflow-hidden">
+                    <RobotModel isThinking={isSending} />
+                    <ScrollArea className="h-full pr-4" ref={chatScrollRef}>
+                      <div className="flex flex-col gap-5 py-4 relative z-10">
+                        {messages.map((msg) => (
+                          <div key={msg.id} className={`flex items-start gap-3 animate-message-in ${msg.role === "assistant" ? 'justify-start' : 'justify-end'}`}>
+                            {msg.role === "assistant" && (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-surface-1 font-mono text-[11px] font-bold text-accent">RAG</div>
+                            )}
+                            <div className="max-w-[90%]">
+                              <div className={`rounded-xl border p-5 text-sm leading-[22px] text-foreground ${msg.role === "assistant" ? 'bg-surface-0/90' : 'bg-surface-1/90 border-accent/20'} backdrop-blur-sm`}>
+                                {msg.attachment?.url && (
+                                  <div className="mb-2.5 max-w-[260px] rounded-md border bg-surface-0 p-2">
+                                    <img src={msg.attachment.url} alt="Attached" className="max-h-32 rounded-sm object-contain" />
+                                  <span className="mt-1 block font-mono text-[10px] text-info">[Analyzed via gemini-3.1-pro-preview]</span>
                                 </div>
                               )}
-
                               <div className="whitespace-pre-wrap">{msg.content}</div>
 
-                              {/* Interactive Citation Badges */}
                               {msg.citations && msg.citations.length > 0 && (
-                                <div className="pt-2.5 flex flex-wrap items-center gap-2 border-t border-white/[0.06]">
-                                  <span className="text-xs font-mono text-slate-300 font-semibold">
-                                    Verified Sources:
-                                  </span>
+                                <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                                  <span className="font-mono text-[10px] font-medium text-foreground">Sources:</span>
                                   {msg.citations.map((cit, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={() => handleHighlightEvidence(cit.chunkId)}
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/40 text-xs font-mono hover:bg-emerald-500/30 transition-colors"
-                                    >
-                                      <span>[{cit.source} - Page {cit.page}]</span>
-                                      <ExternalLink className="w-3 h-3 text-emerald-400" />
-                                    </button>
+                                    <Badge key={idx} variant="secondary" className="cursor-pointer gap-1 px-2 font-mono text-[10px] hover:bg-muted" onClick={() => handleHighlightEvidence(cit.chunkId)}>
+                                      [{cit.source} — Pg {cit.page}] <ExternalLink className="h-2.5 w-2.5" />
+                                    </Badge>
                                   ))}
                                 </div>
                               )}
 
-                              {/* Expandable Retrieval Trace Accordion */}
                               {msg.retrievalTrace && (
-                                <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                                  <button
-                                    onClick={() => setIsTraceOpen(!isTraceOpen)}
-                                    className="flex items-center justify-between w-full text-left font-mono text-xs sm:text-sm text-slate-300 hover:text-slate-100 py-1"
-                                  >
-                                    <span className="flex items-center gap-1.5 font-semibold">
-                                      {isTraceOpen ? "▼" : "▶"} RETRIEVAL TRACE & COGNITIVE GROUNDING
+                                <div className="mt-3 border-t pt-3">
+                                  <button onClick={() => setIsTraceOpen(!isTraceOpen)} className="flex w-full items-center justify-between text-left">
+                                    <span className="flex items-center gap-1.5 font-mono text-[10px] font-medium text-foreground">
+                                      {isTraceOpen ? "▾" : "▸"} RETRIEVAL TRACE
                                     </span>
-                                    <span className="text-emerald-400 font-bold">
-                                      Confidence: {msg.retrievalTrace.confidence}%
-                                    </span>
+                                    <span className="font-mono text-[10px] font-medium text-accent">Confidence: {msg.retrievalTrace.confidence}%</span>
                                   </button>
-
                                   {isTraceOpen && (
-                                    <div className="mt-2.5 p-3.5 rounded-lg bg-[#07090b]/70 border border-white/[0.05] space-y-2 text-xs sm:text-sm font-mono">
-                                      <div className="flex justify-between text-slate-400">
-                                        <span>Hybrid Search Pool:</span>
-                                        <span className="text-slate-200">
-                                          {msg.retrievalTrace.candidatePool} Candidates (BM25: 11, Dense Vector: 12)
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between text-slate-400">
-                                        <span>Cross-Encoder Threshold:</span>
-                                        <span className="text-slate-200">
-                                          &gt; {msg.retrievalTrace.threshold} Score cutoff (Top 5 selected)
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between text-slate-400">
-                                        <span>Deduplication & Rerank:</span>
-                                        <span className="text-emerald-400 font-bold">
-                                          {msg.retrievalTrace.bm25Score} BM25 · {msg.retrievalTrace.cosineScore} Cosine Alignment
-                                        </span>
-                                      </div>
+                                    <div className="mt-2 flex flex-col gap-1.5 rounded-md border bg-surface-0 p-3">
+                                      <div className="flex justify-between font-mono text-[10px] font-medium"><span className="text-muted-foreground">Hybrid Search Pool:</span><span className="text-foreground">{msg.retrievalTrace.candidatePool} Candidates (BM25: 11, Dense: 12)</span></div>
+                                      <div className="flex justify-between font-mono text-[10px] font-medium"><span className="text-muted-foreground">Cross-Encoder Threshold:</span><span className="text-foreground">&gt; {msg.retrievalTrace.threshold} Score cutoff (Top 5)</span></div>
+                                      <div className="flex justify-between font-mono text-[10px] font-medium"><span className="text-muted-foreground">Dedup & Rerank:</span><span className="text-accent">{msg.retrievalTrace.bm25Score} BM25 · {msg.retrievalTrace.cosineScore} Cosine</span></div>
                                     </div>
                                   )}
                                 </div>
                               )}
                             </div>
                           </div>
-
-                          {!isAssistant && (
-                            <div className="h-9 w-9 rounded-lg bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center font-mono text-emerald-300 text-sm font-bold shrink-0">
-                              SV
-                            </div>
+                          {msg.role === "user" && (
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-surface-interactive font-mono text-[11px] font-bold text-accent">SV</div>
                           )}
                         </div>
-                      );
-                    })}
+                      ))}
+                      {isSending && (
+                        <div className="flex items-start gap-3 relative z-10">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-surface-1 font-mono text-[11px] font-bold text-accent">RAG</div>
+                          <div className="flex items-center gap-2.5 rounded-xl border bg-surface-0/90 p-4 backdrop-blur-sm">
+                            <RefreshCw className="h-4 w-4 animate-spin text-accent" />
+                            <span className="font-mono text-xs font-medium text-accent">Generating with {enableHighThinking ? "gemini-3.1-pro" : selectedModel}...</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
 
-                    {isSending && (
-                      <div className="flex items-start gap-3.5">
-                        <div className="h-9 w-9 rounded-lg bg-[#182127] border border-white/10 flex items-center justify-center font-mono text-emerald-400 text-sm font-bold shrink-0">
-                          RAG
-                        </div>
-                        <div className="tactile-recessed p-4 rounded-xl text-sm font-mono text-emerald-400 flex items-center gap-2.5">
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>Generating hybrid synthesis with {enableHighThinking ? "gemini-3.1-pro-preview (High Thinking)" : selectedModel}...</span>
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex flex-wrap gap-2 border-t py-2.5">
+                    {["Summarize Key Leave Requirements", "Explain Section 4.2 Severance", "Compare Medical vs Dental Coverage"].map((prompt) => (
+                      <Badge key={prompt} variant="secondary" className="cursor-pointer gap-1.5 px-3 py-1 font-mono text-[10px] hover:bg-muted" onClick={() => handleSendMessage(prompt)}>
+                        <Zap className="h-3.5 w-3.5 text-accent" /> {prompt}
+                      </Badge>
+                    ))}
                   </div>
 
-                  {/* Recommendation Prompt Chips */}
-                  <div className="pt-2.5 pb-1 border-t border-white/[0.04] flex flex-wrap gap-2">
-                    <button
-                      onClick={() =>
-                        handleSendMessage("Summarize Key Leave Requirements & Sabbatical Rules")
-                      }
-                      className="tactile-raised-btn px-3 py-1.5 rounded-md text-xs sm:text-sm font-mono text-slate-300 hover:text-emerald-300 flex items-center gap-2"
-                    >
-                      <Zap className="w-4 h-4 text-emerald-400" /> Summarize Leave Requirements
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleSendMessage(
-                          "Explain Section 4.2 Severance calculations and non-compete covenants"
-                        )
-                      }
-                      className="tactile-raised-btn px-3 py-1.5 rounded-md text-xs sm:text-sm font-mono text-slate-300 hover:text-emerald-300 flex items-center gap-2"
-                    >
-                      <Zap className="w-4 h-4 text-emerald-400" /> Explain Section 4.2 Severance
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleSendMessage("Compare Medical vs Dental Coverage maximums and deductibles")
-                      }
-                      className="tactile-raised-btn px-3 py-1.5 rounded-md text-xs sm:text-sm font-mono text-slate-300 hover:text-emerald-300 flex items-center gap-2"
-                    >
-                      <Zap className="w-4 h-4 text-emerald-400" /> Compare Medical vs Dental Coverage
-                    </button>
-                  </div>
-
-                  {/* Input Bar with Micro-chips and TRANSMIT */}
-                  <div className="mt-2 pt-2 border-t border-white/[0.08]">
-                    <div className="flex items-center justify-between pb-2">
+                  <div className="border-t pt-2">
+                    <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        {/* Model Dropdown */}
                         <select
                           value={selectedModel}
                           onChange={(e) => setSelectedModel(e.target.value)}
-                          className="tactile-raised-btn px-2.5 py-1 rounded text-xs font-mono text-slate-200 bg-transparent border-0 focus:ring-0 cursor-pointer"
+                          className="rounded-md border bg-surface-0 px-2.5 py-1 font-mono text-[11px] font-medium text-foreground outline-none"
                         >
-                          <option value="gemini-3.5-flash" className="bg-[#0b0f12]">
-                            Model: Gemini 3.5 Flash
-                          </option>
-                          <option value="gemini-3.1-pro-preview" className="bg-[#0b0f12]">
-                            Model: Gemini 3.1 Pro Preview
-                          </option>
-                          <option value="gemini-3.1-flash-lite" className="bg-[#0b0f12]">
-                            Model: Gemini 3.1 Flash Lite
-                          </option>
+                          <option value="gemini-3.5-flash">Model: Gemini 3.5 Flash</option>
+                          <option value="gemini-3.1-pro-preview">Model: Gemini 3.1 Pro Preview</option>
                         </select>
-
-                        <span className="tactile-raised-btn px-2.5 py-1 rounded text-xs font-mono text-slate-300 flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-cyan-400"></span> Retrieval: Hybrid (BM25 + ADA-002)
-                        </span>
+                        <Badge variant="outline" className="gap-1 font-mono text-[9px] tracking-wider">
+                          <span className="pip pip-info h-1.5 w-1.5" /> Hybrid (BM25 + ADA-002)
+                        </Badge>
                       </div>
-
-                      <span className="text-xs font-mono text-slate-400">
-                        Press <kbd className="px-1.5 py-0.5 bg-black/40 rounded border border-white/10 text-slate-300">Enter ↵</kbd>
+                      <span className="font-mono text-[10px] font-medium text-muted-foreground">
+                        Press <kbd className="rounded-sm border bg-surface-0 px-1.5 py-0.5 text-foreground">Enter ↵</kbd>
                       </span>
                     </div>
 
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }}
-                      className="relative flex items-center"
-                    >
-                      <input
-                        type="text"
+                    <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="relative flex items-center">
+                      <Input
                         value={inputQuery}
                         onChange={(e) => setInputQuery(e.target.value)}
-                        placeholder="Ask a question against employee_handbook_2026.pdf (e.g. sabbatical, severance, leave)..."
-                        className="w-full rounded-xl bg-[#07090b] py-4 pl-4 pr-36 text-sm sm:text-base font-mono text-slate-100 placeholder-slate-500 border border-white/[0.08] focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.8)]"
+                        placeholder="Ask a question against employee_handbook_2026.pdf..."
+                        className="h-12 w-full font-mono text-sm pr-[140px]"
                       />
-
                       <div className="absolute right-2 flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={onOpenImageAnalysis}
-                          className="p-2.5 text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-white/5"
-                          title="Attach Document Image / Scan"
-                        >
-                          <Paperclip className="w-5 h-5" />
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={!inputQuery.trim() || isSending}
-                          className="tactile-emerald-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-mono font-bold text-white tracking-wide disabled:opacity-50"
-                        >
-                          <span>TRANSMIT</span>
-                          <span>↵</span>
-                        </button>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onOpenImageAnalysis}>
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
+                        <Button type="submit" disabled={!inputQuery.trim() || isSending} className="h-8 px-4 font-mono text-xs font-bold tracking-widest">
+                          TRANSMIT ↵
+                        </Button>
                       </div>
                     </form>
                   </div>
-                </div>
+                </Card>
               </div>
 
-              {/* Right Column: Live Evidence & Retrieval Inspector (35%) */}
-              <div className="lg:col-span-4 space-y-4">
-                <div className="tactile-card rounded-xl p-4 sm:p-5 flex flex-col h-[740px]">
-                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold tracking-wider text-slate-200 uppercase">
-                        RETRIEVAL EVIDENCE & RERANK SCORE
-                      </span>
+              <div className="lg:col-span-4">
+                <Card className="flex h-[calc(100vh-240px)] min-h-[500px] flex-col bg-surface-1 p-5">
+                  <div className="mb-4 flex items-center justify-between border-b pb-3">
+                    <span className="font-mono text-xs font-medium uppercase tracking-wider text-foreground">RETRIEVAL EVIDENCE</span>
+                    <Badge variant="outline" className="border-success/30 bg-success/10 font-mono text-[9px] font-medium tracking-wider text-success">TOP 3 CHUNKS</Badge>
+                  </div>
+
+                  <ScrollArea className="flex-1">
+                    <div className="flex flex-col gap-3 pr-3">
+                      {chunks.slice(0, 3).map((chunk) => {
+                        const isTargeted = highlightedChunkId === chunk.id;
+                        return (
+                          <div key={chunk.id} id={`chunk-card-${chunk.id}`} className={`rounded-lg border bg-surface-0 p-4 transition-all duration-300 ${isTargeted ? 'ring-2 ring-accent' : ''}`} style={{ borderLeftWidth: 3, borderLeftColor: chunk.id === 184 ? 'var(--accent)' : chunk.id === 185 ? 'var(--accent-dim)' : 'var(--foreground-dim)' }}>
+                            <div className="mb-2 flex items-center justify-between font-mono text-xs font-medium">
+                              <span className="text-foreground">CHUNK #{chunk.id}</span>
+                              <span className="text-accent">Score: {chunk.score.toFixed(3)}</span>
+                            </div>
+                            <div className="mb-3 grid grid-cols-3 gap-1 rounded-md border bg-surface-1 p-2 font-mono text-[10px] font-medium">
+                              <span className="text-muted-foreground">BM25: <span className="text-foreground">{chunk.bm25}</span></span>
+                              <span className="text-muted-foreground">Cosine: <span className="text-foreground">{chunk.cosine}</span></span>
+                              <span className="text-muted-foreground">Page: <span className="text-accent">{chunk.page}</span></span>
+                            </div>
+                            <Progress value={chunk.score * 100} className="mb-3 h-1" />
+                            <p className="rounded-md border bg-surface-1 p-3 text-[13px] leading-5 text-foreground">{chunk.content}</p>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <span className="font-mono text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded font-semibold">
-                      TOP 3 CHUNKS
-                    </span>
+                  </ScrollArea>
+
+                  <div className="mt-3 flex items-center justify-between border-t pt-3 font-mono text-[10px] font-medium">
+                    <span className="text-muted-foreground">Embedding: Text-Embedding-3-Large</span>
+                    <button onClick={() => setActiveTab("retrieval")} className="text-accent underline">Inspect Matrix →</button>
                   </div>
-
-                  {/* Scrollable Evidence List */}
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                    {chunks.slice(0, 3).map((chunk) => {
-                      const isTargeted = highlightedChunkId === chunk.id;
-                      return (
-                        <article
-                          key={chunk.id}
-                          id={`chunk-card-${chunk.id}`}
-                          className={`tactile-recessed rounded-xl p-4 border-l-4 transition-all duration-300 ${
-                            chunk.id === 184
-                              ? "border-emerald-400"
-                              : chunk.id === 185
-                              ? "border-emerald-500/70"
-                              : "border-slate-600"
-                          } ${
-                            isTargeted
-                              ? "ring-2 ring-emerald-400 bg-[#141b20] scale-[1.01]"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-xs sm:text-sm font-mono mb-2">
-                            <span className="font-bold text-slate-200">
-                              CHUNK #{chunk.id}
-                            </span>
-                            <span className="text-emerald-400 font-bold">
-                              Score: {chunk.score.toFixed(3)}
-                            </span>
-                          </div>
-
-                          {/* Metrics Bar */}
-                          <div className="grid grid-cols-3 gap-1.5 mb-3 font-mono text-xs text-slate-300 bg-black/40 p-2 rounded border border-white/[0.04]">
-                            <div>
-                              BM25: <span className="text-slate-100 font-semibold">{chunk.bm25}</span>
-                            </div>
-                            <div>
-                              Cosine: <span className="text-slate-100 font-semibold">{chunk.cosine}</span>
-                            </div>
-                            <div>
-                              Page:{" "}
-                              <span className="text-emerald-300 font-bold">
-                                {chunk.page}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Score Bar */}
-                          <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden mb-3">
-                            <div
-                              className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full"
-                              style={{ width: `${Math.round(chunk.score * 100)}%` }}
-                            ></div>
-                          </div>
-
-                          <p className="text-sm text-slate-200 leading-relaxed font-sans bg-[#0b0f12]/60 p-3 rounded border border-white/[0.04]">
-                            {chunk.content}
-                          </p>
-                        </article>
-                      );
-                    })}
-                  </div>
-
-                  {/* Inspector Footer Action */}
-                  <div className="pt-3 border-t border-white/[0.08] flex justify-between items-center text-sm font-mono">
-                    <span className="text-slate-400">Embedding: Text-Embedding-3-Large</span>
-                    <button
-                      onClick={() => setActiveTab("retrieval")}
-                      className="text-emerald-400 hover:text-emerald-300 underline font-semibold flex items-center gap-1.5"
-                    >
-                      <span>Inspect Matrix</span>
-                      <span>→</span>
-                    </button>
-                  </div>
-                </div>
+                </Card>
               </div>
             </section>
-            {/* END: DualColumnAnalystConsole */}
-          </div>
-        )}
+          </TabsContent>
 
-        {/* VIEW 2: DOCUMENTS */}
-        {activeTab === "documents" && (
-          <div className="tactile-card rounded-xl p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-white font-mono uppercase">
-                  Indexed Knowledge Repositories
-                </h2>
-                <p className="text-sm text-slate-300 font-mono mt-1">
-                  {documents.length} total documents · 14,280 chunks indexed with Vector + Inverted index
-                </p>
+          {/* VIEW 2: DOCUMENTS */}
+          <TabsContent value="documents" className="mt-0 animate-tab-content">
+            <Card className="bg-surface-1 p-8 animate-fade-in-up">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-sans text-xl font-semibold text-accent">Indexed Knowledge Repositories</h2>
+                  <p className="mt-1.5 font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">{documents.length} documents · 14,280 chunks · Vector + Inverted index</p>
+                </div>
+                <Button onClick={onOpenImageAnalysis} className="font-mono text-xs font-bold tracking-widest">+ UPLOAD & ANALYZE NEW CORPUS</Button>
               </div>
-
-              <button
-                onClick={onOpenImageAnalysis}
-                className="tactile-emerald-btn px-4 py-2.5 rounded-lg text-sm font-mono font-bold flex items-center gap-2"
-              >
-                <span>+ UPLOAD & ANALYZE NEW CORPUS</span>
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left font-mono text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-white/10 text-slate-300 uppercase text-xs font-semibold">
-                    <th className="py-3.5 px-4">Document Title</th>
-                    <th className="py-3.5 px-4">Type</th>
-                    <th className="py-3.5 px-4">Pages</th>
-                    <th className="py-3.5 px-4">Chunks</th>
-                    <th className="py-3.5 px-4">Index Status</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.05] text-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Pages</TableHead>
+                    <TableHead>Chunks</TableHead>
+                    <TableHead>Index Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-white/[0.02]">
-                      <td className="py-3.5 px-4 font-semibold text-white flex items-center gap-2.5">
-                        <span
-                          className={`font-bold ${
-                            doc.type === "PDF"
-                              ? "text-red-400"
-                              : doc.type === "DOCX"
-                              ? "text-blue-400"
-                              : doc.type === "MD"
-                              ? "text-amber-400"
-                              : "text-emerald-400"
-                          }`}
-                        >
-                          {doc.type}
-                        </span>
-                        <span>{doc.title}</span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-400">{doc.category}</td>
-                      <td className="py-3.5 px-4">{doc.pages}</td>
-                      <td className="py-3.5 px-4">{doc.chunks}</td>
-                      <td className="py-3.5 px-4 text-emerald-400 font-medium">
-                        ● Synced ({doc.syncPercentage}%)
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => setActiveTab("workspace")}
-                          className="tactile-raised-btn px-3 py-1.5 rounded text-xs font-semibold text-slate-200"
-                        >
-                          Inspect
-                        </button>
-                      </td>
-                    </tr>
+                    <TableRow key={doc.id}>
+                      <TableCell className="font-medium text-accent">
+                        <span className={`mr-2 font-bold ${doc.type === "PDF" ? 'text-destructive' : doc.type === "DOCX" ? 'text-blue-500' : doc.type === "MD" ? 'text-warning' : 'text-success'}`}>{doc.type}</span>
+                        {doc.title}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{doc.category}</TableCell>
+                      <TableCell>{doc.pages}</TableCell>
+                      <TableCell>{doc.chunks}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-success">
+                          <span className="pip pip-success h-1.5 w-1.5" /> Synced ({doc.syncPercentage}%)
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setActiveTab("workspace")} className="font-mono text-[11px]">INSPECT</Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
 
-        {/* VIEW 3: PIPELINE */}
-        {activeTab === "pipeline" && (
-          <div className="tactile-card rounded-xl p-6 sm:p-8 space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-white font-mono uppercase mb-1">
-                Detailed Hybrid Execution Topology
-              </h2>
-              <p className="text-sm text-slate-300 font-mono">
-                Real-time trace telemetry for multimodal embedding and reranker orchestration.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="tactile-recessed p-5 rounded-xl space-y-3.5">
-                <div className="flex items-center justify-between font-mono text-sm">
-                  <span className="text-slate-100 font-bold">1. DENSE VECTOR BRANCH</span>
-                  <span className="text-emerald-400 font-bold">280ms</span>
-                </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  Embedding: Text-Embedding-3-Large (1536 dim). Cosine similarity index over HNSW graph index with M=16, efConstruction=64.
-                </p>
-                <div className="font-mono text-xs sm:text-sm text-slate-200 pt-1">
-                  Top-K Candidate Pool: <strong className="text-emerald-400">12 matches</strong>
-                </div>
+          {/* VIEW 3: PIPELINE */}
+          <TabsContent value="pipeline" className="mt-0 animate-tab-content">
+            <Card className="bg-surface-1 p-8 animate-fade-in-up">
+              <div className="mb-6">
+                <h2 className="font-sans text-xl font-semibold text-accent">Detailed Hybrid Execution Topology</h2>
+                <p className="mt-1.5 font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">Real-time trace telemetry for multimodal embedding and reranker orchestration.</p>
               </div>
-
-              <div className="tactile-recessed p-5 rounded-xl space-y-3.5">
-                <div className="flex items-center justify-between font-mono text-sm">
-                  <span className="text-slate-100 font-bold">2. SPARSE BM25 BRANCH</span>
-                  <span className="text-emerald-400 font-bold">14ms</span>
-                </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  Exact token overlap match using Okapi BM25 (k1=1.2, b=0.75). Filtered for stop-words with morphological lemmatization.
-                </p>
-                <div className="font-mono text-xs sm:text-sm text-slate-200 pt-1">
-                  Top-K Candidate Pool: <strong className="text-emerald-400">11 matches</strong>
-                </div>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                {[
+                  { title: "1. DENSE VECTOR BRANCH", time: "280ms", desc: "Embedding: Text-Embedding-3-Large (1536 dim). Cosine similarity index over HNSW graph index with M=16, efConstruction=64.", result: "Top-K Candidate Pool:", value: "12 matches" },
+                  { title: "2. SPARSE BM25 BRANCH", time: "14ms", desc: "Exact token overlap match using Okapi BM25 (k1=1.2, b=0.75). Filtered for stop-words with morphological lemmatization.", result: "Top-K Candidate Pool:", value: "11 matches" },
+                  { title: "3. CROSS-ENCODER RERANK", time: "92ms", desc: "Reciprocal Rank Fusion (RRF k=60) fed into BAAI/bge-reranker-large. Cutoff score strictly pegged at >= 0.80.", result: "Final Injected Chunks:", value: "5 matches" },
+                ].map((item) => (
+                  <Card key={item.title} className="bg-surface-0 p-5 hover-lift">
+                    <div className="mb-3 flex items-center justify-between font-mono text-xs font-medium">
+                      <span className="text-foreground">{item.title}</span>
+                      <span className="text-accent">{item.time}</span>
+                    </div>
+                    <p className="mb-3 text-[13px] leading-5 text-muted-foreground">{item.desc}</p>
+                    <div className="font-mono text-xs font-medium text-foreground">{item.result} <span className="font-bold text-accent">{item.value}</span></div>
+                  </Card>
+                ))}
               </div>
+            </Card>
+          </TabsContent>
 
-              <div className="tactile-recessed p-5 rounded-xl space-y-3.5">
-                <div className="flex items-center justify-between font-mono text-sm">
-                  <span className="text-slate-100 font-bold">3. CROSS-ENCODER RERANK</span>
-                  <span className="text-emerald-400 font-bold">92ms</span>
-                </div>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  Reciprocal Rank Fusion (RRF k=60) fed into BAAI/bge-reranker-large. Cutoff score strictly pegged at &gt;= 0.80.
-                </p>
-                <div className="font-mono text-xs sm:text-sm text-slate-200 pt-1">
-                  Final Injected Chunks: <strong className="text-emerald-400">5 matches</strong>
-                </div>
+          {/* VIEW 4: RETRIEVAL */}
+          <TabsContent value="retrieval" className="mt-0 animate-tab-content">
+            <Card className="bg-surface-1 p-8 animate-fade-in-up">
+              <div className="mb-6">
+                <h2 className="font-sans text-xl font-semibold text-accent">Deep Candidate Inspector Matrix</h2>
+                <p className="mt-1.5 font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">Cross-correlation between Sparse Lexical (BM25) and Semantic Dense Cosine scores.</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 4: RETRIEVAL */}
-        {activeTab === "retrieval" && (
-          <div className="tactile-card rounded-xl p-6 sm:p-8 space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-white font-mono uppercase mb-1">
-                Deep Candidate Inspector Matrix
-              </h2>
-              <p className="text-sm text-slate-300 font-mono">
-                Cross-correlation between Sparse Lexical (BM25) and Semantic Dense Cosine scores.
-              </p>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left font-mono text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-white/10 text-slate-300 uppercase text-xs font-semibold">
-                    <th className="py-3 px-3.5">Chunk ID</th>
-                    <th className="py-3 px-3.5">BM25 Lexical</th>
-                    <th className="py-3 px-3.5">Dense Cosine</th>
-                    <th className="py-3 px-3.5">RRF Score</th>
-                    <th className="py-3 px-3.5">Cross-Encoder</th>
-                    <th className="py-3 px-3.5">Decision</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.05] text-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Chunk ID</TableHead>
+                    <TableHead>BM25 Lexical</TableHead>
+                    <TableHead>Dense Cosine</TableHead>
+                    <TableHead>RRF Score</TableHead>
+                    <TableHead>Cross-Encoder</TableHead>
+                    <TableHead>Decision</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {chunks.map((c) => (
-                    <tr
-                      key={c.id}
-                      className={`hover:bg-white/[0.02] ${
-                        !c.injected ? "opacity-60" : ""
-                      }`}
-                    >
-                      <td className="py-3 px-3.5 text-white font-bold">
-                        #{c.id} (Page {c.page})
-                      </td>
-                      <td className="py-3 px-3.5 text-cyan-400 font-medium">{c.bm25}</td>
-                      <td className="py-3 px-3.5 text-emerald-400 font-medium">{c.cosine}</td>
-                      <td className="py-3 px-3.5">{c.rrfScore}</td>
-                      <td className="py-3 px-3.5 font-bold text-emerald-300">
-                        {c.score.toFixed(3)}
-                      </td>
-                      <td className="py-3 px-3.5">
+                    <TableRow key={c.id} className={c.injected ? "" : "opacity-50"}>
+                      <TableCell className="font-bold text-accent">#{c.id} (Page {c.page})</TableCell>
+                      <TableCell className="text-info">{c.bm25}</TableCell>
+                      <TableCell className="text-accent">{c.cosine}</TableCell>
+                      <TableCell>{c.rrfScore}</TableCell>
+                      <TableCell className="font-bold text-accent">{c.score.toFixed(3)}</TableCell>
+                      <TableCell>
                         {c.injected ? (
-                          <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 text-xs font-medium">
-                            INJECTED
-                          </span>
+                          <Badge variant="outline" className="border-success/30 bg-success/10 font-mono text-[11px] text-success">INJECTED</Badge>
                         ) : (
-                          <span className="px-2.5 py-1 rounded bg-red-500/20 text-red-300 text-xs font-medium">
-                            DROPPED (&lt;0.80)
-                          </span>
+                          <Badge variant="outline" className="border-destructive/30 bg-destructive/10 font-mono text-[11px] text-destructive">DROPPED (&lt;0.80)</Badge>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
 
-        {/* VIEW 5: AUDIT */}
-        {activeTab === "audit" && (
-          <div className="tactile-card rounded-xl p-6 sm:p-8 space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-white font-mono uppercase mb-1">
-                Chronological System Audit Trail
-              </h2>
-              <p className="text-sm text-slate-300 font-mono">
-                Cryptographically verified execution events for compliance and security.
-              </p>
-            </div>
-
-            <div className="space-y-3 font-mono text-sm">
-              {auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="tactile-recessed p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-emerald-400 font-bold">[{log.timestamp}]</span>
-                    <span className="text-slate-100 font-semibold">{log.eventType}</span>
-                    <span className="text-slate-300">{log.details}</span>
-                  </div>
-                  <span className="text-slate-400 text-xs shrink-0 font-medium">
-                    {log.userOrWorker}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          {/* VIEW 5: AUDIT */}
+          <TabsContent value="audit" className="mt-0 animate-tab-content">
+            <Card className="bg-surface-1 p-8 animate-fade-in-up">
+              <div className="mb-6">
+                <h2 className="font-sans text-xl font-semibold text-accent">Chronological System Audit Trail</h2>
+                <p className="mt-1.5 font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">Cryptographically verified execution events for compliance and security.</p>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {auditLogs.map((log) => (
+                  <Card key={log.id} className="flex flex-wrap items-center justify-between gap-2.5 bg-surface-0 p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs font-medium text-accent">[{log.timestamp}]</span>
+                      <span className="font-mono text-xs font-medium text-foreground">{log.eventType}</span>
+                      <span className="font-mono text-[10px] font-medium text-muted-foreground">{log.details}</span>
+                    </div>
+                    <span className="font-mono text-[10px] font-medium text-foreground">{log.userOrWorker}</span>
+                  </Card>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
-      {/* Toast Notification */}
+      {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 tactile-card border-emerald-500/40 px-4 py-3 rounded-xl font-mono text-sm text-emerald-300 flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-bottom-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 led-pulse"></span>
-          <span>{toastMessage}</span>
+        <div className="toast z-50 flex items-center gap-2.5 rounded-md border bg-surface-1 px-5 py-3 shadow-lg">
+          <span className="pip pip-online pip-pulse h-2 w-2" />
+          <span className="font-mono text-xs font-medium text-foreground">{toastMessage}</span>
         </div>
       )}
     </div>
