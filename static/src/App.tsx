@@ -36,7 +36,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d10]">
+    <div className="min-h-screen" style={{ background: '#0A0A0A' }}>
       <RAGWorkstation
         onOpenHitl={() => setIsHitlOpen(true)}
         onOpenImageAnalysis={() => setIsImageAnalysisOpen(true)}
@@ -67,4 +67,3 @@ export default function App() {
     </div>
   );
 }
-
