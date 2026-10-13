@@ -1,14 +1,17 @@
 langchain-core
 langchain-community
 langchain-google-genai
+langchain-ollama==0.2.0
+langchain-openai
 langchain-chroma
 langgraph
 pymupdf
 docx2txt
 flashrank
-pydantic
+pydantic>=2.0.0
 flask
 flask-cors
+requests
 
 gunicorn
 python-dotenv

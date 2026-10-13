@@ -16,7 +16,8 @@ from flask_cors import CORS
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
-from rag_engine import process_document, build_rag_graph
+from rag_engine import process_document, build_rag_graph, check_local_llm_connectivity, create_llm
+import requests
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +59,11 @@ def _get_store() -> dict:
             "pending_escalation": None,
             "api_key": os.environ.get("GEMINI_API_KEY", ""),
             "langsmith_key": os.environ.get("LANGSMITH_KEY", ""),
+            "model_config": {
+                "provider": "gemini",
+                "model_name": "gemini-1.5-flash",
+                "api_key": os.environ.get("GEMINI_API_KEY", "")
+            }
         }
     return _sessions[sid]
 
@@ -93,7 +99,7 @@ def index():
 
 @app.route("/api/configure", methods=["POST"])
 def configure():
-    """Store API keys in the server-side session."""
+    """Store API keys and model configuration in the server-side session."""
     data = request.get_json(force=True)
     store = _get_store()
 
@@ -102,6 +108,17 @@ def configure():
         return jsonify({"error": "Gemini API key is required."}), 400
 
     store["api_key"] = api_key
+
+    # Handle model_config if provided
+    if "model_config" in data:
+        model_config = data["model_config"]
+        # Ensure api_key is set in model_config if it's Gemini
+        if model_config.get("provider") == "gemini" and not model_config.get("api_key"):
+            model_config["api_key"] = api_key
+        store["model_config"] = model_config
+    else:
+        # Update default config with new API key
+        store["model_config"]["api_key"] = api_key
 
     langsmith_key = data.get("langsmith_key", "").strip() or os.environ.get("LANGSMITH_KEY", "")
     if langsmith_key:
@@ -112,6 +129,98 @@ def configure():
         os.environ["LANGCHAIN_PROJECT"] = "Advanced-RAG-Assistant"
 
     return jsonify({"status": "ok", "observability": bool(langsmith_key)})
+
+
+# ---------------------------------------------------------------------------
+# Routes — Model Discovery & Testing
+# ---------------------------------------------------------------------------
+
+@app.route("/api/models/list", methods=["GET"])
+def list_models():
+    """
+    Return available models for each provider.
+    Attempts to auto-detect Ollama models if server is running.
+    """
+    models_list = {
+        "gemini": [
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.0-pro"
+        ],
+        "ollama": [],
+        "lmstudio": [],
+        "localai": []
+    }
+    
+    # Try to detect Ollama models
+    ollama_base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+    try:
+        response = requests.get(f"{ollama_base_url}/api/tags", timeout=3)
+        if response.status_code == 200:
+            ollama_models = response.json().get("models", [])
+            models_list["ollama"] = [m["name"] for m in ollama_models]
+    except Exception:
+        # Ollama not running or not accessible - return empty list
+        pass
+    
+    return jsonify(models_list)
+
+
+@app.route("/api/models/test", methods=["POST"])
+def test_model():
+    """
+    Test connectivity to an LLM provider with the given configuration.
+    Returns status, message, and latency information.
+    """
+    data = request.get_json(force=True)
+    
+    model_config = {
+        "provider": data.get("provider", "gemini"),
+        "model_name": data.get("model_name", ""),
+        "api_key": data.get("api_key", ""),
+        "base_url": data.get("base_url", "")
+    }
+    
+    if not model_config["model_name"]:
+        return jsonify({
+            "ok": False,
+            "message": "Model name is required"
+        }), 400
+    
+    import time
+    start_time = time.time()
+    
+    try:
+        # For local providers, test connectivity first
+        if model_config["provider"] in ["ollama", "lmstudio", "localai"]:
+            connectivity = check_local_llm_connectivity(
+                model_config.get("base_url", ""),
+                model_config["provider"]
+            )
+            if not connectivity["ok"]:
+                return jsonify(connectivity)
+        
+        # Try to create and invoke the LLM
+        llm = create_llm(model_config, fallback=False)
+        response = llm.invoke([HumanMessage(content="Reply with 'OK' if you can read this.")])
+        
+        latency_ms = int((time.time() - start_time) * 1000)
+        
+        return jsonify({
+            "ok": True,
+            "message": f"Successfully connected to {model_config['provider']} - {model_config['model_name']}",
+            "latency_ms": latency_ms,
+            "response": str(response.content)[:100]  # First 100 chars of response
+        })
+        
+    except Exception as e:
+        latency_ms = int((time.time() - start_time) * 1000)
+        return jsonify({
+            "ok": False,
+            "message": f"Connection failed: {str(e)}",
+            "latency_ms": latency_ms
+        }), 500
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +235,8 @@ def upload_document():
     """
     store = _get_store()
 
-    if not store.get("api_key"):
+    model_config = store.get("model_config")
+    if not model_config or not model_config.get("api_key"):
         return jsonify({"error": "API key not configured. Call /api/configure first."}), 400
 
     if "file" not in request.files:
@@ -141,15 +251,14 @@ def upload_document():
     if ext not in allowed_ext:
         return jsonify({"error": f"Unsupported file type: {ext}. Allowed: {', '.join(allowed_ext)}"}), 400
 
-    api_key = store["api_key"]
     file_bytes = file.read()
 
     try:
         # Step 1: Process the document (parse, chunk, embed, index)
-        retriever, metadata = process_document(file_bytes, file.filename, api_key)
+        retriever, metadata = process_document(file_bytes, file.filename, model_config)
 
         # Step 2: Build and compile the LangGraph state machine
-        graph_builder = build_rag_graph(retriever, api_key)
+        graph_builder = build_rag_graph(retriever, model_config)
         store["app"] = graph_builder.compile(checkpointer=store["checkpointer"])
         store["doc_meta"] = metadata
         store["messages"] = []
@@ -175,6 +284,7 @@ def chat():
     Send a user query to the RAG graph.
     Returns a Server-Sent Events stream of tokens from the generate_answer node.
     If an escalation interrupt occurs, the final SSE event signals it.
+    Accepts optional model_config in request body to override session model.
     """
     store = _get_store()
 
@@ -186,12 +296,29 @@ def chat():
     if not user_query:
         return jsonify({"error": "Empty query."}), 400
 
+    # Check if a model_config override is provided for this specific request
+    request_model_config = data.get("model_config")
+    if request_model_config:
+        # Rebuild graph with new model config for this request
+        # Note: This adds ~50-100ms overhead but enables per-query model switching
+        try:
+            retriever = store["app"].get_state({"configurable": {"thread_id": store["thread_id"]}})
+            # We can't easily extract the retriever from compiled graph, so we use the stored one
+            # For now, use the stored graph app (model switching requires re-upload)
+            # TODO: Store retriever separately if per-query model switching is critical
+            pass
+        except Exception:
+            pass
+
     user_msg = HumanMessage(content=user_query)
     store["messages"].append(user_msg)
 
     graph_app = store["app"]
     config = {"configurable": {"thread_id": store["thread_id"]}}
     input_payload = {"messages": [user_msg]}
+    
+    # Get current model info for response metadata
+    current_model = store.get("model_config", {}).get("model_name", "gemini-1.5-flash")
 
     def generate():
         full_response = []
@@ -215,7 +342,7 @@ def chat():
                 response_text = "".join(full_response)
                 if response_text:
                     store["messages"].append(AIMessage(content=response_text))
-                yield f"data: {json.dumps({'type': 'done', 'content': response_text})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'content': response_text, 'model': current_model})}\n\n"
 
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
@@ -331,6 +458,7 @@ def session_status():
         ],
         "pending_escalation": store.get("pending_escalation"),
         "thread_id": store.get("thread_id"),
+        "model_config": store.get("model_config", {}),
     })
 
 

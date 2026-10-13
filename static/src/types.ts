@@ -2,6 +2,13 @@ export type ActiveSystemMode = 'rag-workstation' | 'forgeml';
 
 export type RAGTabId = 'workspace' | 'documents' | 'pipeline' | 'retrieval' | 'audit';
 
+export interface ModelConfig {
+  provider: 'gemini' | 'ollama' | 'lmstudio' | 'localai';
+  model_name: string;
+  api_key?: string;
+  base_url?: string;
+}
+
 export interface RetrievedChunk {
   id: number;
   score: number;
