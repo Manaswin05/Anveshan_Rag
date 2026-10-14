@@ -4,10 +4,11 @@
 An enterprise-grade, multi-format Retrieval-Augmented Generation (RAG) platform powered by a **React/Vite Frontend**, **Flask Backend**, **LangGraph**, and the **Google Gemini API**. This application combines hybrid search (dense vector + sparse BM25), cross-encoder reranking, dynamic document chunking, automated context confidence evaluation, human-in-the-loop (HITL) supervisor overrides, and automatic LLM failover handling.
 
 ## ⚡ Key Features
-1. **Multi-Format Document Ingestion:** Supports `.pdf`, `.docx`, `.txt`, and `.csv` files.  
-2. **Dynamic Chunking:** Automatically calculates chunk size (350 to 900 characters) and overlap (12%) based on total length and paragraph density.  
-3. **Hybrid Search Retrieval:** Merges dense semantic vector search via Chroma DB (gemini-embedding-001) with sparse keyword matching via BM25.
-4. **Cross-Encoder Reranking:** Re-orders retrieved passages using FlashRank (ms-marco-TinyBERT-L-2-v2) to prioritize relevant context.
+1. **Multi-LLM Provider Support:** Choose from Google Gemini, Ollama, LM Studio, or LocalAI models via an intuitive dropdown selector with connection testing.
+2. **Multi-Format Document Ingestion:** Supports `.pdf`, `.docx`, `.txt`, and `.csv` files.  
+3. **Dynamic Chunking:** Automatically calculates chunk size (350 to 900 characters) and overlap (12%) based on total length and paragraph density.  
+4. **Hybrid Search Retrieval:** Merges dense semantic vector search via Chroma DB (gemini-embedding-001) with sparse keyword matching via BM25.
+5. **Cross-Encoder Reranking:** Re-orders retrieved passages using FlashRank (ms-marco-TinyBERT-L-2-v2) to prioritize relevant context.
 
 ## 🧠 LangGraph Orchestration
 1. **Policy & Security Checking:** Detects prompt injection patterns and flags sensitive keywords.
@@ -44,9 +45,17 @@ An enterprise-grade, multi-format Retrieval-Augmented Generation (RAG) platform 
 - A Google Gemini API Key from Google AI Studio.
 
 ### 2. Environment Setup
-Create a `.env` file in the root directory and add your API keys:
+Create a `.env` file in the root directory and add your configuration:
 ```env
+# Required for Gemini models and embeddings
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional: Local LLM servers (defaults shown)
+OLLAMA_BASE_URL=http://localhost:11434
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LOCALAI_BASE_URL=http://localhost:8080/v1
+
+# Optional: Observability
 LANGSMITH_KEY=your_langsmith_key_here
 ```
 
@@ -83,7 +92,59 @@ Open **http://localhost:5173** in your web browser. The Vite development server 
 
 ---
 
+## 🤖 Multi-LLM Provider Support
+
+Anveshan RAG now supports multiple LLM providers, giving you flexibility to choose between cloud and local inference:
+
+### Supported Providers
+
+| Provider | Type | Setup Time | Privacy | Cost |
+|----------|------|------------|---------|------|
+| **Google Gemini** | Cloud | < 1 min | Shared with Google | Pay-per-use |
+| **Ollama** | Local | 5-10 min | 100% Local | Free (your hardware) |
+| **LM Studio** | Local | 5-10 min | 100% Local | Free (your hardware) |
+| **LocalAI** | Local | 10-20 min | 100% Local | Free (your hardware) |
+
+### Quick Start by Provider
+
+#### Google Gemini (Recommended for Getting Started)
+```bash
+# 1. Get API key from https://aistudio.google.com/
+# 2. Add to .env file
+echo "GEMINI_API_KEY=your_key_here" >> .env
+# 3. Select model from dropdown in UI
+```
+
+#### Ollama (Best for Local Privacy)
+```bash
+# 1. Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 2. Pull a model
+ollama pull llama3.2
+
+# 3. Select from dropdown in UI (auto-detected)
+```
+
+#### LM Studio (Most User-Friendly Local)
+1. Download from [lmstudio.ai](https://lmstudio.ai)
+2. Download and load a model (e.g., Llama 3.2 8B)
+3. Start the local server (⚡ Local Server tab)
+4. Configure in UI: "LM Studio: Configure..."
+
+#### LocalAI (Self-Hosted Production)
+```bash
+# Using Docker
+docker run -p 8080:8080 -v $PWD/models:/models \
+  quay.io/go-skynet/local-ai:latest
+```
+
+📚 **Full Setup Guide**: See [LLM_PROVIDERS.md](./LLM_PROVIDERS.md) for detailed instructions, troubleshooting, and performance comparisons.
+
+---
+
 ## 📖 User Guide
+- **Model Selection**: Choose your LLM provider from the dropdown. Test local connections before use.
 - **API Configuration**: The app will automatically load your `GEMINI_API_KEY` from the `.env` file. You can also configure it in the UI's sidebar.
 - **Document Ingestion**: Upload a PDF, DOCX, TXT, or CSV file and click **Process**.
 - **Interactive Chat**: Use quick-suggestion prompt chips or enter custom questions in the chat box. The LangGraph backend streams responses in real-time.

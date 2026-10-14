@@ -2,68 +2,95 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
 import React, { useState, useEffect } from "react";
-import { RAGTabId } from "./types";
-import { RAGWorkstation } from "./components/RAGWorkstation";
+import { ThemeProvider } from "./context/ThemeContext";
+import { Sidebar, Page } from "./components/Sidebar";
+import { ChatPage } from "./pages/ChatPage";
+import { DocumentsPage } from "./pages/DocumentsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { HitlModal } from "./components/HitlModal";
 import { ImageAnalysisModal } from "./components/ImageAnalysisModal";
 import { CommandPalette } from "./components/CommandPalette";
+import { RAGTabId } from "./types";
 
 export default function App() {
-  const [isHitlOpen, setIsHitlOpen] = useState<boolean>(false);
-  const [isImageAnalysisOpen, setIsImageAnalysisOpen] = useState<boolean>(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [activePage, setActivePage]       = useState<Page>("chat");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [clearChatTrigger, setClearChatTrigger] = useState(0);
 
-  // Global keydown handler for ⌘K or Ctrl+K
+  // Modals
+  const [isHitlOpen, setIsHitlOpen]       = useState(false);
+  const [isImageOpen, setIsImageOpen]     = useState(false);
+  const [isCmdOpen, setIsCmdOpen]         = useState(false);
+
+  // ⌘K global shortcut
   useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setIsCommandPaletteOpen((prev) => !prev);
+        setIsCmdOpen((p) => !p);
       }
     };
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const handleApplyHitlOverride = (directive: string, query: string) => {
-    console.log("HITL Override applied:", { directive, query });
-  };
-
-  const handleInjectImageAnalysis = (analysisText: string, imagePreviewUrl?: string) => {
-    console.log("Image analysis injected:", { analysisText, imagePreviewUrl });
+  const handleNewChat = () => {
+    setActivePage("chat");
+    setClearChatTrigger((n) => n + 1);
   };
 
   return (
-    <div className="min-h-screen" style={{ background: '#0A0A0A' }}>
-      <RAGWorkstation
-        onOpenHitl={() => setIsHitlOpen(true)}
-        onOpenImageAnalysis={() => setIsImageAnalysisOpen(true)}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-      />
+    <ThemeProvider>
+      <div className="app-shell">
+        <Sidebar
+          activePage={activePage}
+          onNavigate={setActivePage}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+          onNewChat={handleNewChat}
+        />
 
-      {/* Modals */}
-      <HitlModal
-        isOpen={isHitlOpen}
-        onClose={() => setIsHitlOpen(false)}
-        onApplyOverride={handleApplyHitlOverride}
-      />
+        <main className="app-main" id="main-content">
+          {activePage === "chat" && (
+            <ChatPage
+              onOpenImageAnalysis={() => setIsImageOpen(true)}
+              onOpenHitl={() => setIsHitlOpen(true)}
+              clearTrigger={clearChatTrigger}
+            />
+          )}
+          {activePage === "documents" && <DocumentsPage />}
+          {activePage === "settings"  && <SettingsPage />}
+        </main>
 
-      <ImageAnalysisModal
-        isOpen={isImageAnalysisOpen}
-        onClose={() => setIsImageAnalysisOpen(false)}
-        onInjectAnalysis={handleInjectImageAnalysis}
-      />
-
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onSelectTab={(tab: RAGTabId) => {}}
-        onOpenHitl={() => setIsHitlOpen(true)}
-        onOpenImageAnalysis={() => setIsImageAnalysisOpen(true)}
-        onReindex={() => {}}
-      />
-    </div>
+        {/* ── Modals ── */}
+        <HitlModal
+          isOpen={isHitlOpen}
+          onClose={() => setIsHitlOpen(false)}
+          onApplyOverride={(directive, query) =>
+            console.log("HITL override:", { directive, query })
+          }
+        />
+        <ImageAnalysisModal
+          isOpen={isImageOpen}
+          onClose={() => setIsImageOpen(false)}
+          onInjectAnalysis={(text, url) =>
+            console.log("Image analysis:", { text, url })
+          }
+        />
+        <CommandPalette
+          isOpen={isCmdOpen}
+          onClose={() => setIsCmdOpen(false)}
+          onSelectTab={(tab: RAGTabId) => {
+            if (tab === "documents") setActivePage("documents");
+            else if (tab === "audit" || tab === "pipeline") setActivePage("settings");
+            else setActivePage("chat");
+          }}
+          onOpenHitl={() => setIsHitlOpen(true)}
+          onOpenImageAnalysis={() => setIsImageOpen(true)}
+          onReindex={() => {}}
+        />
+      </div>
+    </ThemeProvider>
   );
 }
