@@ -25,8 +25,7 @@ import {
   RetrievedChunk,
   IndexedDocument,
   PipelineStage,
-  AuditLogEntry,
-  ModelConfig
+  AuditLogEntry
 } from "../types";
 import {
   initialChunks,
@@ -35,7 +34,6 @@ import {
   initialAuditLogs
 } from "../data/mockCorpus";
 import { RobotModel } from "./RobotModel";
-import { ModelSelector } from "./ModelSelector";
 
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -59,11 +57,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
   onOpenCommandPalette,
 }) => {
   const [activeTab, setActiveTab] = useState<string>("workspace");
-  const [modelConfig, setModelConfig] = useState<ModelConfig>({
-    provider: 'gemini',
-    model_name: 'gemini-1.5-flash',
-    api_key: ''
-  });
+  const [selectedModel, setSelectedModel] = useState<string>("gemini-3.5-flash");
   const [enableHighThinking, setEnableHighThinking] = useState<boolean>(false);
   const [chunks, setChunks] = useState<RetrievedChunk[]>(initialChunks);
   const [documents, setDocuments] = useState<IndexedDocument[]>(initialDocuments);
@@ -171,15 +165,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          query: textToSend,
-          model_config: {
-            provider: modelConfig.provider,
-            model_name: modelConfig.model_name,
-            api_key: modelConfig.api_key,
-            base_url: modelConfig.base_url
-          }
-        }),
+        body: JSON.stringify({ query: textToSend }),
       });
 
       if (!response.ok) {
@@ -199,7 +185,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
           role: "assistant",
           content: "",
           timestamp: new Date().toISOString().substring(11, 19) + " UTC",
-          model: modelConfig.model_name,
+          model: selectedModel,
         }
       ]);
 
@@ -318,7 +304,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
           <div className="hidden lg:flex items-center gap-2 rounded-md border bg-surface-1 px-3 py-1.5">
             <span className="pip pip-success" />
             <span className="font-mono text-[11px] font-medium uppercase text-foreground">
-              {enableHighThinking ? "GEMINI 3.1 PRO (HIGH)" : `${modelConfig.provider.toUpperCase()}: ${modelConfig.model_name}`}
+              {enableHighThinking ? "GEMINI 3.1 PRO (HIGH)" : selectedModel.toUpperCase()}
             </span>
             <span className="ml-2 border-l pl-2 font-mono text-[11px] font-medium text-muted-foreground">14ms</span>
           </div>
@@ -531,7 +517,7 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-surface-1 font-mono text-[11px] font-bold text-accent">RAG</div>
                           <div className="flex items-center gap-2.5 rounded-xl border bg-surface-0/90 p-4 backdrop-blur-sm">
                             <RefreshCw className="h-4 w-4 animate-spin text-accent" />
-                            <span className="font-mono text-xs font-medium text-accent">Generating with {enableHighThinking ? "gemini-3.1-pro" : modelConfig.model_name}...</span>
+                            <span className="font-mono text-xs font-medium text-accent">Generating with {enableHighThinking ? "gemini-3.1-pro" : selectedModel}...</span>
                           </div>
                         </div>
                       )}
@@ -550,10 +536,14 @@ export const RAGWorkstation: React.FC<RAGWorkstationProps> = ({
                   <div className="border-t pt-2">
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <ModelSelector
-                          currentConfig={modelConfig}
-                          onModelChange={setModelConfig}
-                        />
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className="rounded-md border bg-surface-0 px-2.5 py-1 font-mono text-[11px] font-medium text-foreground outline-none"
+                        >
+                          <option value="gemini-3.5-flash">Model: Gemini 3.5 Flash</option>
+                          <option value="gemini-3.1-pro-preview">Model: Gemini 3.1 Pro Preview</option>
+                        </select>
                         <Badge variant="outline" className="gap-1 font-mono text-[9px] tracking-wider">
                           <span className="pip pip-info h-1.5 w-1.5" /> Hybrid (BM25 + ADA-002)
                         </Badge>

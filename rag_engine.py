@@ -3,9 +3,8 @@ import os
 import re
 import shutil
 import tempfile
-import requests
 from functools import partial
-from typing import TypedDict, List, Literal, Optional, Tuple, Dict, Any
+from typing import TypedDict, List, Literal, Optional, Tuple
 from pydantic import BaseModel, Field
 
 # Bypass corrupted global metadata on disk
@@ -36,218 +35,6 @@ try:
 except Exception:
     FLASHRANK_AVAILABLE = False
     ranker = None
-
-
-# ============================================================================
-# MODEL CONFIGURATION & LLM FACTORY
-# ============================================================================
-
-class ModelConfig(TypedDict, total=False):
-    """
-    Configuration for LLM provider selection.
-    
-    Attributes:
-        provider: The LLM provider ("gemini", "ollama", "lmstudio", "localai")
-        model_name: The specific model identifier (e.g., "gemini-1.5-flash", "llama3.2")
-        api_key: API key for cloud providers (required for Gemini, optional for local)
-        base_url: Base URL for local LLM servers (required for ollama/lmstudio/localai)
-    """
-    provider: str
-    model_name: str
-    api_key: str
-    base_url: str
-
-
-def create_llm(model_config: ModelConfig, fallback: bool = False):
-    """
-    Factory function to create LLM instances based on provider configuration.
-    
-    This function centralizes LLM instantiation logic and supports multiple providers:
-    - Gemini: Google's Generative AI models with automatic fallback support
-    - Ollama: Local LLM inference server
-    - LM Studio: Local model runtime with OpenAI-compatible API
-    - LocalAI: Self-hosted OpenAI alternative
-    
-    Args:
-        model_config: Dictionary containing provider, model_name, api_key, and base_url
-        fallback: If True and provider is "gemini", adds fallback to gemini-1.5-flash
-        
-    Returns:
-        A LangChain chat model instance ready for inference
-        
-    Raises:
-        ValueError: If provider is unsupported or required config is missing
-        
-    Examples:
-        >>> # Gemini with fallback
-        >>> llm = create_llm({
-        ...     "provider": "gemini",
-        ...     "model_name": "gemini-2.0-flash-exp",
-        ...     "api_key": "your-api-key"
-        ... }, fallback=True)
-        
-        >>> # Ollama local model
-        >>> llm = create_llm({
-        ...     "provider": "ollama",
-        ...     "model_name": "llama3.2",
-        ...     "base_url": "http://localhost:11434"
-        ... })
-    """
-    provider = model_config.get("provider", "gemini").lower()
-    model_name = model_config.get("model_name", "gemini-1.5-flash")
-    api_key = model_config.get("api_key", "")
-    base_url = model_config.get("base_url", "")
-    
-    try:
-        if provider == "gemini":
-            if not api_key:
-                raise ValueError("Gemini provider requires an API key")
-            
-            primary_llm = ChatGoogleGenerativeAI(
-                model=model_name,
-                google_api_key=api_key,
-                temperature=0,
-                max_retries=1
-            )
-            
-            # Add fallback to gemini-1.5-flash if requested
-            if fallback and model_name != "gemini-1.5-flash":
-                fallback_llm = ChatGoogleGenerativeAI(
-                    model="gemini-1.5-flash",
-                    google_api_key=api_key,
-                    temperature=0
-                )
-                return primary_llm.with_fallbacks([fallback_llm])
-            
-            return primary_llm
-            
-        elif provider == "ollama":
-            from langchain_ollama import ChatOllama
-            
-            if not base_url:
-                base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-            
-            return ChatOllama(
-                model=model_name,
-                base_url=base_url,
-                temperature=0
-            )
-            
-        elif provider == "lmstudio":
-            from langchain_openai import ChatOpenAI
-            
-            if not base_url:
-                base_url = os.environ.get("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
-            
-            return ChatOpenAI(
-                model=model_name,
-                base_url=base_url,
-                api_key="lm-studio",  # LM Studio doesn't validate API keys
-                temperature=0
-            )
-            
-        elif provider == "localai":
-            from langchain_openai import ChatOpenAI
-            
-            if not base_url:
-                base_url = os.environ.get("LOCALAI_BASE_URL", "http://localhost:8080/v1")
-            
-            return ChatOpenAI(
-                model=model_name,
-                base_url=base_url,
-                api_key="localai",  # LocalAI placeholder key
-                temperature=0
-            )
-            
-        else:
-            raise ValueError(
-                f"Unsupported LLM provider: {provider}. "
-                f"Supported providers: gemini, ollama, lmstudio, localai"
-            )
-            
-    except Exception as e:
-        raise ValueError(f"Failed to create LLM for provider '{provider}': {str(e)}")
-
-
-def check_local_llm_connectivity(base_url: str, provider: str = "ollama") -> Dict[str, Any]:
-    """
-    Test connectivity to a local LLM server.
-    
-    Args:
-        base_url: The base URL of the local LLM server
-        provider: The provider type ("ollama", "lmstudio", "localai")
-        
-    Returns:
-        Dictionary with keys:
-            - ok: Boolean indicating if server is reachable
-            - message: Human-readable status message
-            - latency_ms: Response time in milliseconds (if successful)
-            - models: List of available models (for Ollama)
-    """
-    import time
-    
-    try:
-        start_time = time.time()
-        
-        if provider == "ollama":
-            # Ollama has a tags endpoint that lists available models
-            response = requests.get(f"{base_url}/api/tags", timeout=5)
-            latency_ms = int((time.time() - start_time) * 1000)
-            
-            if response.status_code == 200:
-                models = [m["name"] for m in response.json().get("models", [])]
-                return {
-                    "ok": True,
-                    "message": f"Ollama server is running with {len(models)} model(s)",
-                    "latency_ms": latency_ms,
-                    "models": models
-                }
-            else:
-                return {
-                    "ok": False,
-                    "message": f"Ollama server responded with status {response.status_code}",
-                    "latency_ms": latency_ms
-                }
-        
-        else:
-            # For LM Studio and LocalAI, test the /v1/models endpoint
-            response = requests.get(f"{base_url}/models", timeout=5)
-            latency_ms = int((time.time() - start_time) * 1000)
-            
-            if response.status_code == 200:
-                return {
-                    "ok": True,
-                    "message": f"{provider.upper()} server is running",
-                    "latency_ms": latency_ms
-                }
-            else:
-                return {
-                    "ok": False,
-                    "message": f"Server responded with status {response.status_code}",
-                    "latency_ms": latency_ms
-                }
-                
-    except requests.exceptions.Timeout:
-        return {
-            "ok": False,
-            "message": "Connection timeout - server may not be running"
-        }
-    except requests.exceptions.ConnectionError:
-        return {
-            "ok": False,
-            "message": "Connection refused - ensure server is started"
-        }
-    except Exception as e:
-        return {
-            "ok": False,
-            "message": f"Error: {str(e)}"
-        }
-
-
-# ============================================================================
-# RETRIEVER & DOCUMENT PROCESSING
-# ============================================================================
-
 
 
 class CustomHybridRetriever(BaseRetriever):
@@ -340,23 +127,18 @@ def calculate_dynamic_chunk_params(documents: List[Document]) -> Tuple[int, int]
     return chunk_size, chunk_overlap
 
 
-def generate_document_summary(documents: List[Document], model_config: ModelConfig) -> str:
-    """
-    Generates a summary sampling key text snippets to conserve quota.
-    
-    Args:
-        documents: List of Document objects to summarize
-        model_config: LLM configuration dict with provider, model_name, api_key, base_url
-        
-    Returns:
-        A concise summary string (2 bullet points)
-    """
+def generate_document_summary(documents: List[Document], api_key: str) -> str:
+    """Generates a summary sampling key text snippets to conserve quota."""
     if not documents:
         return "• Document processed successfully."
     
     sample_text = documents[0].page_content[:500]
     try:
-        llm = create_llm(model_config, fallback=False)
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-3.7-flash",
+            google_api_key=api_key,
+            temperature=0.2
+        )
         prompt = f"Summarize key topic in 2 concise bullet points:\n{sample_text}"
         res = llm.invoke([HumanMessage(content=prompt)])
         return res.content
@@ -381,18 +163,8 @@ def rerank_documents(query: str, docs: List[Document], top_n: int = 3) -> List[D
     return reranked_docs
 
 
-def process_document(file_bytes: bytes, filename: str, model_config: ModelConfig):
-    """
-    Parses document, clears stale local Chroma indexes, and populates store.
-    
-    Args:
-        file_bytes: Raw file content as bytes
-        filename: Original filename with extension
-        model_config: LLM configuration dict for summarization
-        
-    Returns:
-        Tuple of (retriever, metadata_dict)
-    """
+def process_document(file_bytes: bytes, filename: str, api_key: str):
+    """Parses document, clears stale local Chroma indexes, and populates store."""
     suffix = os.path.splitext(filename)[1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
         tmp_file.write(file_bytes)
@@ -418,12 +190,6 @@ def process_document(file_bytes: bytes, filename: str, model_config: ModelConfig
     if os.path.exists("./chroma_db"):
         shutil.rmtree("./chroma_db")
 
-    # NOTE: Embeddings remain Gemini-only for now. Future enhancement could add
-    # support for local embedding models (e.g., sentence-transformers).
-    api_key = model_config.get("api_key", os.environ.get("GEMINI_API_KEY", ""))
-    if not api_key and model_config.get("provider") == "gemini":
-        raise ValueError("Gemini API key required for embeddings")
-    
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/gemini-embedding-001",
         google_api_key=api_key
@@ -446,7 +212,7 @@ def process_document(file_bytes: bytes, filename: str, model_config: ModelConfig
     except Exception:
         hybrid_retriever = dense_retriever
 
-    doc_summary = generate_document_summary(documents, model_config)
+    doc_summary = generate_document_summary(documents, api_key)
 
     metadata = {
         "page_count": len(documents),
@@ -501,12 +267,7 @@ def retrieve_node(state: SupportState, retriever):
 
 
 def evaluate_confidence_node(state: SupportState, llm):
-    """
-    Dynamically grades context relevance using GradeConfidence schema.
-    
-    Falls back to simple text parsing if structured output is not supported
-    (common with smaller local LLMs).
-    """
+    """Dynamically grades context relevance using GradeConfidence schema."""
     existing_reason = state.get("escalation_reason")
     if existing_reason:
         return {"confidence_score": 0.0, "escalation_reason": existing_reason}
@@ -533,21 +294,8 @@ def evaluate_confidence_node(state: SupportState, llm):
         structured_llm = llm.with_structured_output(GradeConfidence)
         result = structured_llm.invoke([HumanMessage(content=prompt)])
         score = result.score
-    except Exception as e:
-        # Fallback for local LLMs that don't support structured output
-        try:
-            fallback_prompt = (
-                f"{prompt}\n\n"
-                f"Reply ONLY with a number between 0.0 and 1.0, nothing else."
-            )
-            response = llm.invoke([HumanMessage(content=fallback_prompt)])
-            # Extract first float from response
-            import re
-            match = re.search(r'\b[0-1]\.?\d*\b', str(response.content))
-            score = float(match.group()) if match else 1.0
-        except Exception:
-            # If all fails, assume confidence is acceptable
-            score = 1.0
+    except Exception:
+        score = 1.0
 
     escalation = None
     if score < 0.60:
@@ -605,21 +353,26 @@ def route_confidence(state: SupportState) -> Literal["human_escalation", "genera
 
 # --- Clean Graph Orchestrator with Native Fallbacks ---
 
-def build_rag_graph(retriever, model_config: ModelConfig):
-    """
-    Constructs LangGraph machine with configurable LLM provider support.
+def build_rag_graph(retriever, api_key: str):
+    """Constructs LangGraph machine with automatic Gemini model failover."""
     
-    Supports Gemini (with automatic failover), Ollama, LM Studio, and LocalAI.
-    
-    Args:
-        retriever: A LangChain retriever instance (hybrid or standard)
-        model_config: Configuration dict with provider, model_name, api_key, base_url
-        
-    Returns:
-        A StateGraph builder ready to be compiled with a checkpointer
-    """
-    # Create LLM instance with fallback support for Gemini
-    llm = create_llm(model_config, fallback=(model_config.get("provider") == "gemini"))
+    # Primary model (fails fast upon quota/rate limit error to trigger fallback)
+    primary_llm = ChatGoogleGenerativeAI(
+        model="gemini-3.7-flash",
+        google_api_key=api_key,
+        temperature=0,
+        max_retries=1
+    )
+
+    # Secondary fallback model
+    fallback_llm = ChatGoogleGenerativeAI(
+        model="gemini-3.6-flash",
+        google_api_key=api_key,
+        temperature=0
+    )
+
+    # Automatic failover wrapper
+    llm = primary_llm.with_fallbacks([fallback_llm])
 
     builder = StateGraph(SupportState)
 
